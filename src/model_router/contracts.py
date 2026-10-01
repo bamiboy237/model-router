@@ -16,12 +16,31 @@ class Contract(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
 
-class TaskType(StrEnum):
-    BUG_FIX = "bug_fix"
-    FEATURE = "feature"
+class Kind(StrEnum):
+    EXPLORE = "explore"
+    REVIEW = "review"
+    FIX = "fix"
+    BUILD = "build"
     REFACTOR = "refactor"
     TEST = "test"
+    DESIGN = "design"
     DOCS = "docs"
+
+
+class Domain(StrEnum):
+    FRONTEND = "frontend"
+    BACKEND = "backend"
+    DATA = "data"
+    INFRA = "infra"
+    GENERAL = "general"
+
+
+CODE_EDITING_KINDS = frozenset({Kind.FIX, Kind.BUILD, Kind.REFACTOR, Kind.TEST})
+
+
+def require_domain_matches_kind(kind: Kind, domain: Domain | None) -> None:
+    if (kind in CODE_EDITING_KINDS) != (domain is not None):
+        raise ValueError("fix, build, refactor, and test need a domain; other kinds take none")
 
 
 class ResultStatus(StrEnum):
@@ -78,7 +97,9 @@ class VerifierSpec(Contract):
 class TaskSpec(Contract):
     schema_version: Literal[1] = SCHEMA_VERSION
     task_id: Id
-    task_type: TaskType
+    kind: Kind
+    domain: Domain | None = None
+    overview: str = ""
     instruction: Id
     repo: Id
     base_sha: str = Field(pattern=r"^([0-9a-f]{40}|[0-9a-f]{64})$")
@@ -86,7 +107,8 @@ class TaskSpec(Contract):
     verifiers: tuple[VerifierSpec, ...] = ()
 
     @model_validator(mode="after")
-    def _unique_verifier_names(self) -> Self:
+    def _valid_tags_and_verifiers(self) -> Self:
+        require_domain_matches_kind(self.kind, self.domain)
         _require_unique((v.name for v in self.verifiers), "verifier name")
         return self
 
@@ -173,6 +195,7 @@ class VerificationResult(Contract):
 class Candidate(Contract):
     model: ModelRef
     score: float | None
+    expected_cost_micro_usd: NonNegativeInt | None = None
     constraint_violations: tuple[Id, ...] = ()
     reason: Id
 
@@ -183,6 +206,7 @@ class DecisionReceipt(Contract):
     task_features: dict[str, Feature]
     candidates: tuple[Candidate, ...] = Field(min_length=1)
     selected: ModelRef
+    role: Id
     rationale: Id
 
     @model_validator(mode="after")

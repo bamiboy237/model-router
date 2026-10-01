@@ -1,8 +1,7 @@
-# Model choices per role are starting hypotheses, not measured facts.
-# Ticket 06 replaces them with evidence from trial records.
+# A role sets instructions and limits. The router picks the model for each job;
+# see config/router.toml.
 
 [roles.exploration]
-model = { provider = "google", model_id = "gemini-3.8-flash" }
 instructions = """
 You explore a repository to answer a question about it. Read and search; do not edit files
 unless the task asks for a change. Be brief."""
@@ -11,7 +10,6 @@ max_total_tokens = 400_000
 time_budget_s = 300
 
 [roles.coding]
-model = { provider = "openai", model_id = "gpt-6.1-sol" }
 instructions = """
 You are a careful software engineer. Make the smallest change that completes the task.
 Run the task's checks before you finish, and fix any failures your change causes."""
@@ -20,32 +18,17 @@ max_total_tokens = 1_500_000
 time_budget_s = 900
 
 [roles.reasoning]
-model = { provider = "openai", model_id = "gpt-6-astra" }
 instructions = """
-You solve hard problems that need careful reasoning: subtle bugs, design changes, and
-failures other attempts could not fix. Explain the root cause in your final summary."""
+You solve hard problems that need careful reasoning: reviews, designs, subtle bugs, and
+failures other attempts could not fix. Explain your reasoning in your final summary."""
 max_turns = 40
 max_total_tokens = 1_000_000
 time_budget_s = 1200
 
-# Optional DeepSeek worker presets. Leave disabled: build_model supports only
-# OpenAI and Google. A DeepSeek adapter must set its endpoint and credentials.
-# Pricing source: https://api-docs.deepseek.com/quick_start/pricing
-# [roles.coding_deepseek_v4]
-# model = { provider = "deepseek", model_id = "deepseek-v4-pro" }
-# instructions = """
-# You are a careful software engineer. Make the smallest change that completes the task.
-# Run the task's checks before you finish, and fix any failures your change causes."""
-# max_turns = 60
-# max_total_tokens = 1_500_000
-# time_budget_s = 900
-
-# V4.1 Flash uses deepseek-flash as its API model ID.
-# [roles.exploration_deepseek_flash]
-# model = { provider = "deepseek", model_id = "deepseek-flash" }
-# instructions = """
-# You explore a repository to answer a question about it. Read and search; do not edit files
-# unless the task asks for a change. Be brief."""
-# max_turns = 30
-# max_total_tokens = 400_000
-# time_budget_s = 300
+[roles.writing]
+instructions = """
+You write clear technical documentation. Read the code you describe, keep claims accurate,
+and edit only documentation files unless the task says otherwise."""
+max_turns = 30
+max_total_tokens = 600_000
+time_budget_s = 600

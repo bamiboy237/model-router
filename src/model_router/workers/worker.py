@@ -74,6 +74,7 @@ async def run_worker(
     task: TaskSpec,
     context: ContextPacket,
     role: WorkerRole,
+    model_ref: ModelRef,
     attempt_id: str,
     prices: PriceTable,
     sandbox_config: SandboxConfig | None = None,
@@ -83,12 +84,12 @@ async def run_worker(
 
     Pass model to replace the provider with a scripted pydantic_ai FunctionModel or TestModel.
     """
-    prices.price_for(role.model)
+    prices.price_for(model_ref)
     capabilities: list[AbstractCapability[DockerSandbox]] = (
         [CodeMode(tools=CODE_MODE_METADATA)] if role.code_mode else []
     )
     agent = Agent(
-        model or build_model(role.model),
+        model or build_model(model_ref),
         deps_type=DockerSandbox,
         instructions=role.instructions,
         toolsets=worker_toolsets(),
@@ -129,18 +130,19 @@ async def run_worker(
     return TaskResult(
         task_id=task.task_id,
         attempt_id=attempt_id,
-        model=role.model,
+        model=model_ref,
         patch=patch,
         error_code=error_code,
         error_message=error_message,
         usage=tokens,
-        cost_micro_usd=prices.cost_micro_usd(role.model, tokens),
+        cost_micro_usd=prices.cost_micro_usd(model_ref, tokens),
         latency_ms=latency_ms,
     )
 
 
 def _prompt(task: TaskSpec, context: ContextPacket) -> str:
-    lines = [
+    lines = [f"Background: {task.overview}", ""] if task.overview else []
+    lines += [
         task.instruction,
         "",
         f"The repository is checked out at {WORKDIR}. Edit files there directly.",

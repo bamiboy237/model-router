@@ -10,7 +10,6 @@ from model_router.contracts import Contract, Id, ModelRef, TokenUsage
 
 class WorkerRole(Contract):
     name: Id
-    model: ModelRef
     instructions: Id
     max_turns: int = Field(ge=1)
     max_total_tokens: int = Field(ge=1)

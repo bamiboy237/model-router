@@ -78,6 +78,17 @@
       "title": "CheckResult",
       "type": "object"
     },
+    "Domain": {
+      "enum": [
+        "frontend",
+        "backend",
+        "data",
+        "infra",
+        "general"
+      ],
+      "title": "Domain",
+      "type": "string"
+    },
     "ErrorCode": {
       "enum": [
         "rate_limited",
@@ -91,6 +102,20 @@
         "patch_apply_failed"
       ],
       "title": "ErrorCode",
+      "type": "string"
+    },
+    "Kind": {
+      "enum": [
+        "explore",
+        "review",
+        "fix",
+        "build",
+        "refactor",
+        "test",
+        "design",
+        "docs"
+      ],
+      "title": "Kind",
       "type": "string"
     },
     "LabInfo": {
@@ -195,17 +220,6 @@
       "title": "ResultStatus",
       "type": "string"
     },
-    "TaskType": {
-      "enum": [
-        "bug_fix",
-        "feature",
-        "refactor",
-        "test",
-        "docs"
-      ],
-      "title": "TaskType",
-      "type": "string"
-    },
     "TokenUsage": {
       "additionalProperties": false,
       "properties": {
@@ -280,6 +294,16 @@
       "title": "Cost Micro Usd",
       "type": "integer"
     },
+    "domain": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Domain"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "error_code": {
       "anyOf": [
         {
@@ -289,6 +313,9 @@
           "type": "null"
         }
       ]
+    },
+    "kind": {
+      "$ref": "#/$defs/Kind"
     },
     "lab": {
       "anyOf": [
@@ -337,6 +364,11 @@
       "title": "Policy Version",
       "type": "string"
     },
+    "role": {
+      "minLength": 1,
+      "title": "Role",
+      "type": "string"
+    },
     "schema_version": {
       "const": 1,
       "default": 1,
@@ -376,9 +408,6 @@
       "title": "Task Id",
       "type": "string"
     },
-    "task_type": {
-      "$ref": "#/$defs/TaskType"
-    },
     "trace_id": {
       "minLength": 1,
       "title": "Trace Id",
@@ -391,7 +420,8 @@
   "required": [
     "trace_id",
     "task_id",
-    "task_type",
+    "kind",
+    "domain",
     "task_features",
     "attempt_id",
     "parent_attempt_id",
@@ -399,6 +429,7 @@
     "attempt_index",
     "started_at",
     "policy_version",
+    "role",
     "model",
     "context_strategy",
     "context_token_estimate",

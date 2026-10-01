@@ -9,15 +9,16 @@ from model_router.contracts import (
     AttemptCause,
     CheckResult,
     Contract,
+    Domain,
     ErrorCode,
     ExecutionTrace,
     Feature,
     Id,
+    Kind,
     ModelRef,
     NonNegativeInt,
     ResultStatus,
     Sha256,
-    TaskType,
     TokenUsage,
     outcome_status,
     require_status,
@@ -49,7 +50,8 @@ class TrialRecord(Contract):
     schema_version: Literal[1] = SCHEMA_VERSION
     trace_id: Id
     task_id: Id
-    task_type: TaskType
+    kind: Kind
+    domain: Domain | None
     task_features: dict[str, Feature]
     attempt_id: Id
     parent_attempt_id: Id | None
@@ -57,6 +59,7 @@ class TrialRecord(Contract):
     attempt_index: NonNegativeInt
     started_at: AwareDatetime
     policy_version: Id
+    role: Id
     model: ModelRef
     context_strategy: Id
     context_token_estimate: NonNegativeInt
@@ -88,7 +91,9 @@ def trial_records(trace: ExecutionTrace, lab: LabInfo | None = None) -> tuple[Tr
             TrialRecord(
                 trace_id=trace.trace_id,
                 task_id=trace.task.task_id,
-                task_type=trace.task.task_type,
+                kind=trace.task.kind,
+                domain=trace.task.domain,
+                role=attempt.decision.role,
                 task_features=attempt.decision.task_features,
                 attempt_id=attempt.attempt_id,
                 parent_attempt_id=attempt.parent_attempt_id,

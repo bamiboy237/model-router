@@ -1,0 +1,56 @@
+# Rule-based router settings. Change routing here, not in code.
+# Bump policy_version whenever a value below changes, so receipts stay traceable.
+policy_version = "rules-2026-10-01"
+
+# cheapest_above: cheapest model whose expected success >= min_success.
+# best_success: highest expected success; cost breaks ties.
+# best_value: highest expected success per dollar.
+pick_rule = "cheapest_above"
+min_success = 0.8
+
+[roles]
+explore = "exploration"
+review = "reasoning"
+design = "reasoning"
+fix = "coding"
+build = "coding"
+refactor = "coding"
+test = "coding"
+docs = "writing"
+
+# GUESSES: typical tokens per job on top of the linked files. Used only to rank
+# models by expected cost. Ticket 06 replaces these with medians from trial records.
+[usage]
+explore = { input_tokens = 40_000, output_tokens = 2_000 }
+review = { input_tokens = 60_000, output_tokens = 4_000 }
+fix = { input_tokens = 120_000, output_tokens = 6_000 }
+build = { input_tokens = 200_000, output_tokens = 12_000 }
+refactor = { input_tokens = 200_000, output_tokens = 10_000 }
+test = { input_tokens = 150_000, output_tokens = 10_000 }
+design = { input_tokens = 80_000, output_tokens = 8_000 }
+docs = { input_tokens = 80_000, output_tokens = 8_000 }
+
+# context_limit comes from each provider's model page (read 2026-10-01).
+# success values are GUESSES of the chance a job passes its checks, keyed by
+# "<kind>/<domain>", "<kind>", or "*", most specific first. Ticket 06 replaces them
+# with measured success rates. DeepSeek is omitted until build_model supports it.
+
+[models."openai:gpt-6-astra"]
+context_limit = 1_050_000
+success = { "*" = 0.92, review = 0.94, design = 0.95 }
+
+[models."openai:gpt-6.1-sol"]
+context_limit = 1_050_000
+success = { "*" = 0.88, fix = 0.9 }
+
+[models."openai:gpt-5.6-sol"]
+context_limit = 1_050_000
+success = { "*" = 0.85 }
+
+[models."openai:gpt-6-luna"]
+context_limit = 1_050_000
+success = { "*" = 0.6, explore = 0.85, docs = 0.8, fix = 0.65 }
+
+[models."google:gemini-3.8-flash"]
+context_limit = 1_048_576
+success = { "*" = 0.78, explore = 0.88, docs = 0.82 }
