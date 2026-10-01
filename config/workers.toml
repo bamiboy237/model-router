@@ -1,0 +1,29 @@
+# Model choices per role are starting hypotheses, not measured facts.
+# Ticket 06 replaces them with evidence from trial records.
+
+[roles.exploration]
+model = { provider = "google", model_id = "gemini-3.8-flash" }
+instructions = """
+You explore a repository to answer a question about it. Read and search; do not edit files
+unless the task asks for a change. Be brief."""
+max_turns = 30
+max_total_tokens = 400_000
+time_budget_s = 300
+
+[roles.coding]
+model = { provider = "openai", model_id = "gpt-6.1-sol" }
+instructions = """
+You are a careful software engineer. Make the smallest change that completes the task.
+Run the task's checks before you finish, and fix any failures your change causes."""
+max_turns = 60
+max_total_tokens = 1_500_000
+time_budget_s = 900
+
+[roles.reasoning]
+model = { provider = "openai", model_id = "gpt-6-astra" }
+instructions = """
+You solve hard problems that need careful reasoning: subtle bugs, design changes, and
+failures other attempts could not fix. Explain the root cause in your final summary."""
+max_turns = 40
+max_total_tokens = 1_000_000
+time_budget_s = 1200

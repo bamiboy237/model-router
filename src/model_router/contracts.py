@@ -43,6 +43,7 @@ class ErrorCode(StrEnum):
     CONTEXT_TOO_LONG = "context_too_long"
     REFUSED = "refused"
     TIME_BUDGET_EXCEEDED = "time_budget_exceeded"
+    BUDGET_EXCEEDED = "budget_exceeded"
     INVALID_OUTPUT = "invalid_output"
     PATCH_APPLY_FAILED = "patch_apply_failed"
 

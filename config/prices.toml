@@ -1,0 +1,30 @@
+# USD per million tokens, standard tier, short context.
+# Sources: https://developers.openai.com/api/docs/pricing and
+# https://ai.google.dev/gemini-api/docs/pricing, read 2026-09-30.
+# Gemini 3.8 Flash prices double on 2027-01-01. Add a new version then; do not edit this one.
+version = "2026-09-30"
+
+[models."openai:gpt-6-astra"]
+input = 10.00
+cache_read = 1.00
+cache_write = 12.50
+output = 50.00
+
+[models."openai:gpt-6.1-sol"]
+input = 2.00
+cache_read = 0.10
+cache_write = 2.50
+output = 10.00
+
+[models."openai:gpt-6-luna"]
+input = 0.10
+cache_read = 0.01
+cache_write = 0.125
+output = 0.50
+
+# Gemini bills explicit cache storage per hour, not per token written.
+[models."google:gemini-3.8-flash"]
+input = 0.75
+cache_read = 0.075
+cache_write = 0.00
+output = 3.75

@@ -35,7 +35,7 @@ Run `ruff`, `mypy --strict`, and `python -m model_router.schemas --check`. By us
 - Status always follows the evidence, and validation rejects a status that contradicts it. A failed required check means `failed`. A missing or inconclusive check means `uncertain`.
 - Error codes split by whether they say something about the model:
   - `uncertain`: `rate_limited`, `provider_unavailable`, and `network_error`. These describe the provider.
-  - `failed`: `context_too_long`, `refused`, `time_budget_exceeded`, `invalid_output`, and `patch_apply_failed`. These describe the model's fit for the task.
+  - `failed`: `context_too_long`, `refused`, `time_budget_exceeded`, `budget_exceeded`, `invalid_output`, and `patch_apply_failed`. These describe the model's fit for the task.
   - Ticket `01` adapters map each provider's HTTP status and message to one code. A network-level timeout is `network_error`. A model that runs past the task's time budget is `time_budget_exceeded`.
 - `schemas/trial_record.v1.json` is checked in. CI regenerates it and fails on drift.
 

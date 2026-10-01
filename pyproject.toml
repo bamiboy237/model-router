@@ -2,7 +2,12 @@
 name = "model-router"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ["pydantic>=2.10"]
+dependencies = [
+    "httpx>=0.28.1",
+    "pydantic>=2.10",
+    "pydantic-ai-harness[codemode]>=0.52.0",
+    "pydantic-ai-slim[google,openai]>=2.52.0",
+]
 
 [build-system]
 requires = ["hatchling"]

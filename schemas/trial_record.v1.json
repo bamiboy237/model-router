@@ -86,6 +86,7 @@
         "context_too_long",
         "refused",
         "time_budget_exceeded",
+        "budget_exceeded",
         "invalid_output",
         "patch_apply_failed"
       ],
