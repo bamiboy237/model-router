@@ -10,7 +10,7 @@ Follow the tickets in numeric order. Finish the deterministic execution and eval
 
 The stages are:
 
-1. `00` through `03b`: establish contracts, workers, routing, verification, and escalation. Then strip `~/Desktop/simulate` to its core and build the trial lab on it.
+1. `00` through `03b`: establish contracts, workers, routing, verification, and escalation. Then build the trial lab in `src/trial_lab/` on the core stripped from `simulate`.
 2. `04` through `05`: build the benchmark and complete the rule-based MVP orchestrator.
 3. `06` through `12`: add outcome prediction, policy utility, stateful context, replay, drift checks, safe rollout, and online evaluation.
 4. `13` through `16`: add parallel task execution, local-execution decisions, adaptive specialization, and production control-plane interfaces.
@@ -27,6 +27,15 @@ The stages are:
 - Keep offline policy evaluation reproducible before any online experiment.
 - Make every decision explainable through a decision receipt with features, candidates, scores, constraints, and evidence.
 - Use provider gateways and model APIs through adapters. Keep gateway, billing, and provider health concerns outside this project.
+
+## Trial lab package
+
+`src/trial_lab/` runs trial plans and writes trial records. It shares this project's `pyproject.toml`.
+
+- `trial_lab` imports `model_router`. `model_router` never imports `trial_lab`; it reads only the files the lab writes.
+- `model_router` owns the contracts, including `TrialRecord`.
+- Keep `trial_lab` under 2,000 lines of Python.
+- Port ideas from the `legacy/support-v0` tag in `~/Desktop/simulate` (GitHub `bamiboy237/simulate`). Do not copy legacy files whole.
 
 ## Full-project completion
 

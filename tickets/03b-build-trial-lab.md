@@ -6,7 +6,7 @@ Beginning. This ticket blocks ticket `04`.
 
 ## Dependencies
 
-- Ticket `03a` has stripped `~/Desktop/simulate` to `trial_lab`.
+- Ticket `03a` has stripped `simulate` to `trial_lab`, now in `src/trial_lab/` of this repository.
 - Tickets `00`, `01`, and `03` provide `TaskSpec`, `ContextPacket`, `TaskResult`, `TrialRecord`, worker adapters, and verifiers.
 
 ## Goal
@@ -16,12 +16,14 @@ Run a matrix of coding task × arm × repetition in isolated workspaces. Verify 
 ## Boundary
 
 ```text
-model-router (library)   contracts, worker adapters, verifiers, routing policies
-simulate (trial_lab)     task corpus, workspaces, trial plans, execution, trial store, reports
+src/model_router   contracts, worker adapters, verifiers, routing policies
+src/trial_lab      task corpus, workspaces, trial plans, execution, trial store, reports
 ```
 
-- The lab imports model-router as a library, so training and routing share one implementation of workers and verifiers.
-- model-router reads only the files the lab writes. It never imports the lab.
+Both packages live in this repository and share one `pyproject.toml`.
+
+- The lab imports `model_router`, so training and routing share one implementation of workers and verifiers.
+- `model_router` reads only the files the lab writes. It never imports the lab.
 - model-router owns the `TrialRecord` schema.
 
 ## Task corpus
@@ -128,4 +130,4 @@ runs/<run_id>/
 ## Open questions
 
 - Task source: write the first 10 tasks by hand, or adapt public tasks in the style of SWE-bench Lite? Writing them by hand first keeps admission and feature extraction honest.
-- Name: keep `simulate`, or rename the repository to match its new purpose?
+- `trial_lab.models` has its own `ModelRef` and `build_model`, with Anthropic and custom-endpoint support. Replace them with `model_router`'s versions, or merge the Anthropic support into `model_router.workers`?

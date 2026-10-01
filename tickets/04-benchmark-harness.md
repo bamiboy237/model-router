@@ -6,7 +6,7 @@ MVP
 
 ## Dependencies
 
-Ticket `03b` delivers trial execution in the `simulate` lab. This ticket defines the benchmark manifest and builds the baseline reports from the lab's exported trial records.
+Ticket `03b` delivers trial execution in the `trial_lab` package. This ticket defines the benchmark manifest and builds the baseline reports from the lab's exported trial records.
 
 ## Goal
 

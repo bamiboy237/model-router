@@ -2,7 +2,7 @@
 
 ## Stage
 
-Beginning. This ticket blocks tickets `03b` and `04`.
+Beginning. Done. Commit `78d086f` on branch `strip/trial-lab-core` in `~/Desktop/simulate` holds the stripped core. The `trial_lab` package now lives in `src/trial_lab/` of this repository, and `~/Desktop/simulate` is kept as the archive.
 
 ## Dependencies
 

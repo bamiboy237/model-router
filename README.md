@@ -46,7 +46,7 @@ Build the deterministic path before training a router.
 3. Record tokens, cost, latency, outcome, and verifier output for every run.
 4. Add a rule-based router with explicit capability priors.
 5. Create benchmark tasks for exploration, implementation, tests, debugging, refactoring, and architecture.
-6. Strip `~/Desktop/simulate` to its trial-lab core (ticket `03a`), then build the lab that runs those tasks and writes trial records (ticket `03b`).
+6. Strip `simulate` to its trial-lab core (ticket `03a`) and move it into `src/trial_lab/`, then build the lab that runs those tasks and writes trial records (ticket `03b`).
 
 The first router uses configuration, not machine learning:
 
