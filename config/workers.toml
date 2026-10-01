@@ -27,3 +27,25 @@ failures other attempts could not fix. Explain the root cause in your final summ
 max_turns = 40
 max_total_tokens = 1_000_000
 time_budget_s = 1200
+
+# Optional DeepSeek worker presets. Leave disabled: build_model supports only
+# OpenAI and Google. A DeepSeek adapter must set its endpoint and credentials.
+# Pricing source: https://api-docs.deepseek.com/quick_start/pricing
+# [roles.coding_deepseek_v4]
+# model = { provider = "deepseek", model_id = "deepseek-v4-pro" }
+# instructions = """
+# You are a careful software engineer. Make the smallest change that completes the task.
+# Run the task's checks before you finish, and fix any failures your change causes."""
+# max_turns = 60
+# max_total_tokens = 1_500_000
+# time_budget_s = 900
+
+# V4.1 Flash uses deepseek-flash as its API model ID.
+# [roles.exploration_deepseek_flash]
+# model = { provider = "deepseek", model_id = "deepseek-flash" }
+# instructions = """
+# You explore a repository to answer a question about it. Read and search; do not edit files
+# unless the task asks for a change. Be brief."""
+# max_turns = 30
+# max_total_tokens = 400_000
+# time_budget_s = 300
