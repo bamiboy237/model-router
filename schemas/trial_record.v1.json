@@ -1,0 +1,415 @@
+{
+  "$defs": {
+    "AttemptCause": {
+      "enum": [
+        "initial",
+        "retry",
+        "escalation"
+      ],
+      "title": "AttemptCause",
+      "type": "string"
+    },
+    "CheckResult": {
+      "additionalProperties": false,
+      "properties": {
+        "duration_ms": {
+          "minimum": 0,
+          "title": "Duration Ms",
+          "type": "integer"
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Exit Code"
+        },
+        "output_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Hash"
+        },
+        "passed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Passed"
+        },
+        "required": {
+          "title": "Required",
+          "type": "boolean"
+        },
+        "verifier_name": {
+          "minLength": 1,
+          "title": "Verifier Name",
+          "type": "string"
+        },
+        "verifier_version": {
+          "minLength": 1,
+          "title": "Verifier Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "verifier_name",
+        "verifier_version",
+        "required",
+        "passed",
+        "exit_code",
+        "duration_ms"
+      ],
+      "title": "CheckResult",
+      "type": "object"
+    },
+    "ErrorCode": {
+      "enum": [
+        "rate_limited",
+        "provider_unavailable",
+        "network_error",
+        "context_too_long",
+        "refused",
+        "time_budget_exceeded",
+        "invalid_output",
+        "patch_apply_failed"
+      ],
+      "title": "ErrorCode",
+      "type": "string"
+    },
+    "LabInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts_path": {
+          "minLength": 1,
+          "title": "Artifacts Path",
+          "type": "string"
+        },
+        "plan_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Plan Hash",
+          "type": "string"
+        },
+        "repetition": {
+          "minimum": 0,
+          "title": "Repetition",
+          "type": "integer"
+        },
+        "run_id": {
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "task_family": {
+          "minLength": 1,
+          "title": "Task Family",
+          "type": "string"
+        },
+        "trial_id": {
+          "format": "uuid",
+          "title": "Trial Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "trial_id",
+        "run_id",
+        "plan_hash",
+        "repetition",
+        "task_family",
+        "artifacts_path"
+      ],
+      "title": "LabInfo",
+      "type": "object"
+    },
+    "Latency": {
+      "additionalProperties": false,
+      "properties": {
+        "model_ms": {
+          "minimum": 0,
+          "title": "Model Ms",
+          "type": "integer"
+        },
+        "total_ms": {
+          "minimum": 0,
+          "title": "Total Ms",
+          "type": "integer"
+        },
+        "verification_ms": {
+          "minimum": 0,
+          "title": "Verification Ms",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "model_ms",
+        "verification_ms",
+        "total_ms"
+      ],
+      "title": "Latency",
+      "type": "object"
+    },
+    "ModelRef": {
+      "additionalProperties": false,
+      "properties": {
+        "model_id": {
+          "minLength": 1,
+          "title": "Model Id",
+          "type": "string"
+        },
+        "provider": {
+          "minLength": 1,
+          "title": "Provider",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "model_id"
+      ],
+      "title": "ModelRef",
+      "type": "object"
+    },
+    "ResultStatus": {
+      "enum": [
+        "success",
+        "failed",
+        "uncertain"
+      ],
+      "title": "ResultStatus",
+      "type": "string"
+    },
+    "TaskType": {
+      "enum": [
+        "bug_fix",
+        "feature",
+        "refactor",
+        "test",
+        "docs"
+      ],
+      "title": "TaskType",
+      "type": "string"
+    },
+    "TokenUsage": {
+      "additionalProperties": false,
+      "properties": {
+        "cache_read_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Cache Read Tokens",
+          "type": "integer"
+        },
+        "cache_write_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Cache Write Tokens",
+          "type": "integer"
+        },
+        "input_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Input Tokens",
+          "type": "integer"
+        },
+        "output_tokens": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Output Tokens",
+          "type": "integer"
+        }
+      },
+      "title": "TokenUsage",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "attempt_id": {
+      "minLength": 1,
+      "title": "Attempt Id",
+      "type": "string"
+    },
+    "attempt_index": {
+      "minimum": 0,
+      "title": "Attempt Index",
+      "type": "integer"
+    },
+    "cause": {
+      "$ref": "#/$defs/AttemptCause"
+    },
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/CheckResult"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "context_ref_count": {
+      "minimum": 0,
+      "title": "Context Ref Count",
+      "type": "integer"
+    },
+    "context_strategy": {
+      "minLength": 1,
+      "title": "Context Strategy",
+      "type": "string"
+    },
+    "context_token_estimate": {
+      "minimum": 0,
+      "title": "Context Token Estimate",
+      "type": "integer"
+    },
+    "cost_micro_usd": {
+      "minimum": 0,
+      "title": "Cost Micro Usd",
+      "type": "integer"
+    },
+    "error_code": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "lab": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LabInfo"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Set only for rows written by trial_lab."
+    },
+    "latency": {
+      "$ref": "#/$defs/Latency"
+    },
+    "model": {
+      "$ref": "#/$defs/ModelRef"
+    },
+    "parent_attempt_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Parent Attempt Id"
+    },
+    "patch_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Patch Hash"
+    },
+    "policy_version": {
+      "minLength": 1,
+      "title": "Policy Version",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "started_at": {
+      "format": "date-time",
+      "title": "Started At",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/ResultStatus"
+    },
+    "task_features": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      },
+      "title": "Task Features",
+      "type": "object"
+    },
+    "task_id": {
+      "minLength": 1,
+      "title": "Task Id",
+      "type": "string"
+    },
+    "task_type": {
+      "$ref": "#/$defs/TaskType"
+    },
+    "trace_id": {
+      "minLength": 1,
+      "title": "Trace Id",
+      "type": "string"
+    },
+    "usage": {
+      "$ref": "#/$defs/TokenUsage"
+    }
+  },
+  "required": [
+    "trace_id",
+    "task_id",
+    "task_type",
+    "task_features",
+    "attempt_id",
+    "parent_attempt_id",
+    "cause",
+    "attempt_index",
+    "started_at",
+    "policy_version",
+    "model",
+    "context_strategy",
+    "context_token_estimate",
+    "context_ref_count",
+    "usage",
+    "cost_micro_usd",
+    "latency",
+    "checks",
+    "status",
+    "error_code",
+    "patch_hash"
+  ],
+  "title": "TrialRecord",
+  "type": "object"
+}
