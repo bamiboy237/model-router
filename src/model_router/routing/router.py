@@ -1,7 +1,8 @@
+from collections.abc import Callable, Collection
 from dataclasses import dataclass
 
 from model_router.contracts import Candidate, DecisionReceipt, Feature, ModelRef, TokenUsage
-from model_router.routing.config import ANY_TAG, ModelSpec, RouterConfig, model_ref
+from model_router.routing.config import RouterConfig, model_key, model_ref
 from model_router.routing.facts import TaskFacts
 from model_router.routing.request import DelegationRequest
 from model_router.workers.config import PriceTable, UnpricedModelError
@@ -19,10 +20,59 @@ class _Option:
     cost: int
 
 
+# Extra violations for one model, given its success estimate.
+_Constraint = Callable[[ModelRef, float | None], list[str]]
+
+
 def route(
     request: DelegationRequest, facts: TaskFacts, config: RouterConfig, prices: PriceTable
 ) -> DecisionReceipt:
-    tag_keys = _tag_keys(request)
+    candidates, options = _evaluate(request, facts, config, prices, lambda ref, est: [])
+    chosen, rationale = _pick(options, config)
+    verdicts = {o.ref: _verdict(o, chosen, options, config) for o in options}
+    return _receipt(request, facts, config, candidates, verdicts, chosen, rationale)
+
+
+def escalate(
+    request: DelegationRequest,
+    facts: TaskFacts,
+    config: RouterConfig,
+    prices: PriceTable,
+    *,
+    failed: ModelRef,
+    tried: Collection[ModelRef],
+) -> DecisionReceipt:
+    """Pick the cheapest untried model with a higher success estimate than the failed one."""
+    spec = config.models.get(model_key(failed))
+    prior = spec.prior(request.kind, request.domain) if spec else None
+    floor = prior[0] if prior else 0.0
+
+    def stronger_and_untried(ref: ModelRef, estimate: float | None) -> list[str]:
+        if ref in tried:
+            return ["already_tried"]
+        if estimate is not None and estimate <= floor:
+            return ["not_stronger"]
+        return []
+
+    candidates, options = _evaluate(request, facts, config, prices, stronger_and_untried)
+    chosen = min(options, key=lambda o: (o.cost, -o.success, o.key))
+    verdicts = {
+        o.ref: "selected" if o is chosen else "costs more than the selected model" for o in options
+    }
+    rationale = (
+        f"cheapest untried model with expected success above {floor:.2f}, "
+        f"the estimate for {model_key(failed)}"
+    )
+    return _receipt(request, facts, config, candidates, verdicts, chosen, rationale)
+
+
+def _evaluate(
+    request: DelegationRequest,
+    facts: TaskFacts,
+    config: RouterConfig,
+    prices: PriceTable,
+    constraint: _Constraint,
+) -> tuple[list[Candidate], list[_Option]]:
     candidates: list[Candidate] = []
     options: list[_Option] = []
     for key, spec in sorted(config.models.items()):
@@ -35,28 +85,36 @@ def route(
             violations.append("context_too_large")
         if not spec.tool_support:
             violations.append("no_tool_support")
-        estimate = _success(spec, tag_keys)
+        estimate = spec.prior(request.kind, request.domain)
         if estimate is None:
             violations.append("no_success_estimate")
-        reason = _reason(estimate, cost, violations)
+        violations += constraint(ref, estimate[0] if estimate else None)
         candidates.append(
             Candidate(
                 model=ref,
                 score=estimate[0] if estimate else None,
                 expected_cost_micro_usd=cost,
                 constraint_violations=tuple(violations),
-                reason=reason,
+                reason=_reason(estimate, cost, violations),
             )
         )
         if not violations and estimate is not None and cost is not None:
             options.append(_Option(key, ref, estimate[0], cost))
-
     if not options:
         details = "; ".join(f"{c.model.provider}:{c.model.model_id} {c.reason}" for c in candidates)
         raise NoEligibleModelError(f"no model can take this job: {details}")
+    return candidates, options
 
-    chosen, rationale = _pick(options, config)
-    verdicts = {o.ref: _verdict(o, chosen, options, config) for o in options}
+
+def _receipt(
+    request: DelegationRequest,
+    facts: TaskFacts,
+    config: RouterConfig,
+    candidates: list[Candidate],
+    verdicts: dict[ModelRef, str],
+    chosen: _Option,
+    rationale: str,
+) -> DecisionReceipt:
     candidates = [
         c.model_copy(update={"reason": f"{c.reason}; {verdicts[c.model]}"})
         if c.model in verdicts
@@ -72,18 +130,6 @@ def route(
         role=config.roles[request.kind],
         rationale=rationale,
     )
-
-
-def _tag_keys(request: DelegationRequest) -> list[str]:
-    keys = [f"{request.kind}/{request.domain}"] if request.domain else []
-    return keys + [str(request.kind), ANY_TAG]
-
-
-def _success(spec: ModelSpec, tag_keys: list[str]) -> tuple[float, str] | None:
-    for key in tag_keys:
-        if key in spec.success:
-            return spec.success[key], key
-    return None
 
 
 def _expected_cost(

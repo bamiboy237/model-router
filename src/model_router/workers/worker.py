@@ -79,17 +79,19 @@ async def run_worker(
     prices: PriceTable,
     sandbox_config: SandboxConfig | None = None,
     model: Model | None = None,
+    note: str | None = None,
 ) -> TaskResult:
     """Run one agent loop on a task in a fresh sandbox and return its patch or error.
 
     Pass model to replace the provider with a scripted pydantic_ai FunctionModel or TestModel.
+    Pass note to tell the worker why an earlier attempt at the task failed.
     """
     prices.price_for(model_ref)
     capabilities: list[AbstractCapability[DockerSandbox]] = (
         [CodeMode(tools=CODE_MODE_METADATA)] if role.code_mode else []
     )
     agent = Agent(
-        model or build_model(model_ref),
+        model if model is not None else build_model(model_ref),
         deps_type=DockerSandbox,
         instructions=role.instructions,
         toolsets=worker_toolsets(),
@@ -103,7 +105,7 @@ async def run_worker(
 
     async with open_sandbox(task, sandbox_config or SandboxConfig()) as sandbox:
         started = time.monotonic()
-        prompt = _prompt(task, context)
+        prompt = _prompt(task, context, note)
         try:
             async with asyncio.timeout(role.time_budget_s):
                 async with agent.iter(prompt, deps=sandbox, usage_limits=limits) as run:
@@ -140,7 +142,7 @@ async def run_worker(
     )
 
 
-def _prompt(task: TaskSpec, context: ContextPacket) -> str:
+def _prompt(task: TaskSpec, context: ContextPacket, note: str | None) -> str:
     lines = [f"Background: {task.overview}", ""] if task.overview else []
     lines += [
         task.instruction,
@@ -152,5 +154,7 @@ def _prompt(task: TaskSpec, context: ContextPacket) -> str:
     if task.verifiers:
         lines.append("The result will be checked with:")
         lines += [f"- {' '.join(v.command)}" for v in task.verifiers]
+    if note:
+        lines += ["", "An earlier attempt failed. You start from a clean checkout.", note]
     lines.append("When you are done, reply with a one-paragraph summary of your change.")
     return "\n".join(lines)

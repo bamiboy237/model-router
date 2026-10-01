@@ -9,6 +9,17 @@
       "title": "AttemptCause",
       "type": "string"
     },
+    "CheckReason": {
+      "enum": [
+        "assertion_failed",
+        "patch_conflict",
+        "protected_path",
+        "timeout",
+        "unavailable"
+      ],
+      "title": "CheckReason",
+      "type": "string"
+    },
     "CheckResult": {
       "additionalProperties": false,
       "properties": {
@@ -51,6 +62,17 @@
             }
           ],
           "title": "Passed"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CheckReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "required": {
           "title": "Required",
@@ -364,6 +386,14 @@
       "title": "Policy Version",
       "type": "string"
     },
+    "required_checks": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Required Checks",
+      "type": "array"
+    },
     "role": {
       "minLength": 1,
       "title": "Role",
@@ -437,6 +467,7 @@
     "usage",
     "cost_micro_usd",
     "latency",
+    "required_checks",
     "checks",
     "status",
     "error_code",

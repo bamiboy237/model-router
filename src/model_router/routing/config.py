@@ -4,7 +4,16 @@ from typing import Annotated, Literal, Self
 
 from pydantic import Field, model_validator
 
-from model_router.contracts import Contract, Domain, Id, Kind, ModelRef, NonNegativeInt
+from model_router.contracts import (
+    Contract,
+    Domain,
+    ExecutionBudget,
+    Id,
+    Kind,
+    ModelRef,
+    NonNegativeInt,
+    PositiveInt,
+)
 
 PickRule = Literal["cheapest_above", "best_success", "best_value"]
 Probability = Annotated[float, Field(ge=0, le=1)]
@@ -30,6 +39,29 @@ class ModelSpec(Contract):
                 raise ValueError(f"success key {key!r} must be '*', '<kind>', or '<kind>/<domain>'")
         return self
 
+    def prior(self, kind: Kind, domain: Domain | None) -> tuple[float, str] | None:
+        """The most specific success guess for a tag, and the key it came from."""
+        for key in tag_keys(kind, domain):
+            if key in self.success:
+                return self.success[key], key
+        return None
+
+
+class EscalationConfig(Contract):
+    tries_per_model: PositiveInt
+    provider_retries: NonNegativeInt
+    provider_backoff_s: float = Field(ge=0)
+    budget: ExecutionBudget
+
+
+class FeedbackConfig(Contract):
+    """How much each source of feedback counts, in attempts."""
+
+    prior_strength: float = Field(gt=0)
+    human: float = Field(ge=0)
+    orchestrator: float = Field(ge=0)
+    partial: Probability
+
 
 class RouterConfig(Contract):
     policy_version: Id
@@ -38,6 +70,8 @@ class RouterConfig(Contract):
     roles: dict[Kind, Id]
     usage: dict[Kind, UsageEstimate]
     models: dict[str, ModelSpec]
+    escalation: EscalationConfig
+    feedback: FeedbackConfig
 
     @model_validator(mode="after")
     def _complete(self) -> Self:
@@ -55,6 +89,16 @@ def model_ref(key: str) -> ModelRef:
     if not sep:
         raise ValueError(f"model key {key!r} must be 'provider:model_id'")
     return ModelRef(provider=provider, model_id=model_id)
+
+
+def model_key(ref: ModelRef) -> str:
+    return f"{ref.provider}:{ref.model_id}"
+
+
+def tag_keys(kind: Kind, domain: Domain | None) -> tuple[str, ...]:
+    """Prior keys from most to least specific."""
+    specific = (f"{kind}/{domain}",) if domain is not None else ()
+    return (*specific, str(kind), ANY_TAG)
 
 
 def load_router_config(path: Path) -> RouterConfig:

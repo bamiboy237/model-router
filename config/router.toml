@@ -1,6 +1,6 @@
 # Rule-based router settings. Change routing here, not in code.
 # Bump policy_version whenever a value below changes, so receipts stay traceable.
-policy_version = "rules-2026-10-01"
+policy_version = "rules-2026-10-01.2"
 
 # cheapest_above: cheapest model whose expected success >= min_success.
 # best_success: highest expected success; cost breaks ties.
@@ -17,6 +17,32 @@ build = "coding"
 refactor = "coding"
 test = "coding"
 docs = "writing"
+
+# A failed model gets tries_per_model attempts, each told what failed last time. Then the
+# cheapest untried model with a higher success estimate takes over. Provider errors (rate
+# limits, outages, network) retry the same model after provider_backoff_s, doubling each
+# time, and do not use up its tries.
+[escalation]
+tries_per_model = 3
+provider_retries = 2
+provider_backoff_s = 10
+
+# Per-task limits. The orchestrator may lower them for a task, not raise them.
+# max_attempts does not count provider retries. Before each attempt, its expected cost
+# must fit in what is left of max_cost_micro_usd.
+[escalation.budget]
+max_attempts = 6
+max_cost_micro_usd = 5_000_000  # $5
+max_active_ms = 3_600_000       # 60 minutes of machine time; human review time is outside it
+
+# How feedback events count, in attempts. Failed required checks always count as one failure,
+# whatever the feedback says. prior_strength is how many attempts the guesses in [models]
+# are worth before evidence outweighs them.
+[feedback]
+prior_strength = 10
+human = 1.0
+orchestrator = 0.5
+partial = 0.5
 
 # GUESSES: typical tokens per job on top of the linked files. Used only to rank
 # models by expected cost. Ticket 06 replaces these with medians from trial records.

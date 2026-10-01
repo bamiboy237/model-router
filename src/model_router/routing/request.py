@@ -28,6 +28,7 @@ class DelegationRequest(Contract):
     task: Id
     files: tuple[Id, ...] = ()
     checks: tuple[VerifierSpec, ...] = ()
+    protected_paths: tuple[Id, ...] = ()
 
     @model_validator(mode="after")
     def _valid_tags(self) -> Self:
@@ -51,6 +52,7 @@ class DelegationRequest(Contract):
             base_sha=self.base_sha,
             context_refs=self._refs(),
             verifiers=self.checks,
+            protected_paths=self.protected_paths,
         )
 
     def to_context(self, context_tokens: int) -> ContextPacket:

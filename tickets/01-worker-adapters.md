@@ -32,6 +32,7 @@ Run `ruff`, `mypy --strict`, and the schema check. Then run a throwaway script w
 
 - **Provider library:** Pydantic AI. `openai` uses the Responses API, and `google` uses the Gemini API. Each provider reads its key from the host environment.
 - **Worker loop:** the model has five file tools (`list_files`, `read_file`, `search`, `write_file`, `edit_file`) and a `run_command` tool. With `code_mode = true`, the file tools are only callable from inside Pydantic AI Harness `run_code` (Monty). `run_command` stays a normal tool.
+- **Retries:** `run_worker` takes an optional `note`. Ticket `03` uses it to tell a retry or escalation what failed before.
 - **Patch:** the model edits files directly. The worker computes the patch with `git diff` against `base_sha` inside the container. An empty diff is a valid empty patch.
 - **Sandbox:** each attempt gets a fresh clone in a container. The container has no network and no environment variables from the host. It runs as the host user and has memory, CPU, and process limits. Every command, including `git diff`, runs inside the container, so a model cannot plant git hooks or config that the host would execute. Commands get a deadline inside the container, because killing the host-side `docker exec` does not stop them.
 - **Limits:** each role sets `max_turns`, `max_total_tokens`, and `time_budget_s`. Exceeding turns or tokens records `budget_exceeded`. Exceeding time records `time_budget_exceeded`. Both count as `failed`.

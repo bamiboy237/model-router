@@ -1,4 +1,3 @@
-import hashlib
 from typing import Literal, Self
 from uuid import UUID
 
@@ -67,6 +66,7 @@ class TrialRecord(Contract):
     usage: TokenUsage
     cost_micro_usd: NonNegativeInt
     latency: Latency
+    required_checks: tuple[Id, ...]
     checks: tuple[CheckResult, ...]
     status: ResultStatus
     error_code: ErrorCode | None
@@ -75,7 +75,9 @@ class TrialRecord(Contract):
 
     @model_validator(mode="after")
     def _status_matches_evidence(self) -> Self:
-        require_status(self.status, outcome_status(self.error_code, self.checks))
+        require_status(
+            self.status, outcome_status(self.error_code, self.checks, self.required_checks)
+        )
         return self
 
 
@@ -110,17 +112,15 @@ def trial_records(trace: ExecutionTrace, lab: LabInfo | None = None) -> tuple[Tr
                 latency=Latency(
                     model_ms=result.latency_ms,
                     verification_ms=verification_ms,
-                    total_ms=result.latency_ms + verification_ms,
+                    total_ms=attempt.active_ms,
                 ),
+                required_checks=attempt.plan,
                 checks=attempt.checks,
                 status=attempt.status,
                 error_code=result.error_code,
-                patch_hash=_sha256(result.patch) if result.patch is not None else None,
+                patch_hash=result.patch_hash,
                 lab=lab,
             )
         )
     return tuple(rows)
 
-
-def _sha256(text: str) -> str:
-    return hashlib.sha256(text.encode()).hexdigest()

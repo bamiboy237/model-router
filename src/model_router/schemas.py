@@ -6,9 +6,13 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from model_router.contracts import SCHEMA_VERSION
+from model_router.feedback import FeedbackEvent
 from model_router.trial_record import TrialRecord
 
-EXPORTED: dict[str, type[BaseModel]] = {f"trial_record.v{SCHEMA_VERSION}.json": TrialRecord}
+EXPORTED: dict[str, type[BaseModel]] = {
+    f"trial_record.v{SCHEMA_VERSION}.json": TrialRecord,
+    f"feedback_event.v{SCHEMA_VERSION}.json": FeedbackEvent,
+}
 
 
 def render(model: type[BaseModel]) -> str:

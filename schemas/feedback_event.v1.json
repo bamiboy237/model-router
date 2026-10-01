@@ -1,0 +1,116 @@
+{
+  "$defs": {
+    "Aspect": {
+      "enum": [
+        "visual",
+        "logic",
+        "scope",
+        "style",
+        "other"
+      ],
+      "title": "Aspect",
+      "type": "string"
+    },
+    "FeedbackSource": {
+      "enum": [
+        "human",
+        "orchestrator"
+      ],
+      "title": "FeedbackSource",
+      "type": "string"
+    },
+    "Verdict": {
+      "enum": [
+        "success",
+        "partial",
+        "failed"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "aspect": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Aspect"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "attempt_id": {
+      "minLength": 1,
+      "title": "Attempt Id",
+      "type": "string"
+    },
+    "event_id": {
+      "minLength": 1,
+      "title": "Event Id",
+      "type": "string"
+    },
+    "occurred_at": {
+      "format": "date-time",
+      "title": "Occurred At",
+      "type": "string"
+    },
+    "patch_hash": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The patch that was reviewed, if any.",
+      "title": "Patch Hash"
+    },
+    "rating": {
+      "anyOf": [
+        {
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Rating"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "source": {
+      "$ref": "#/$defs/FeedbackSource"
+    },
+    "trace_id": {
+      "minLength": 1,
+      "title": "Trace Id",
+      "type": "string"
+    },
+    "verdict": {
+      "$ref": "#/$defs/Verdict"
+    }
+  },
+  "required": [
+    "event_id",
+    "trace_id",
+    "attempt_id",
+    "patch_hash",
+    "source",
+    "verdict",
+    "occurred_at"
+  ],
+  "title": "FeedbackEvent",
+  "type": "object"
+}

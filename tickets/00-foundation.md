@@ -30,9 +30,10 @@ Run `ruff`, `mypy --strict`, and `python -m model_router.schemas --check`. By us
 ## Decisions
 
 - Cost is an integer count of millionths of a US dollar (`cost_micro_usd`), so sums stay exact.
+- Traces hold no user content. Ticket `03` stores `TaskSummary` and `ResultSummary`, which hold hashes in place of instruction text, patches, and repo paths.
 - One `ExecutionTrace` per task holds every attempt. Each attempt names its parent and its cause: `initial`, `retry`, or `escalation`. An escalation must change the model.
 - `TrialRecord` rows come from traces through `trial_records()`. Rows are never written by hand. Rows from `trial_lab` add a `lab` block.
-- Status always follows the evidence, and validation rejects a status that contradicts it. A failed required check means `failed`. A missing or inconclusive check means `uncertain`.
+- Status always follows the evidence, and validation rejects a status that contradicts it. A failed required check means `failed`. A missing or inconclusive check means `uncertain`. Ticket `03` judges checks against the task's full list of required verifiers, so a check that never ran counts as missing.
 - Error codes split by whether they say something about the model:
   - `uncertain`: `rate_limited`, `provider_unavailable`, and `network_error`. These describe the provider.
   - `failed`: `context_too_long`, `refused`, `time_budget_exceeded`, `budget_exceeded`, `invalid_output`, and `patch_apply_failed`. These describe the model's fit for the task.
