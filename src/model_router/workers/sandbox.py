@@ -96,6 +96,9 @@ async def open_sandbox(task: TaskSpec, config: SandboxConfig) -> AsyncIterator[D
             "--network", "none",
             "--user", f"{os.getuid()}:{os.getgid()}",
             "--env", "HOME=/tmp",
+            # Keep caches out of the checkout, so they never show up in a patch.
+            "--env", "PYTHONDONTWRITEBYTECODE=1",
+            "--env", "PYTEST_ADDOPTS=-p no:cacheprovider",
             "--memory", config.memory,
             "--cpus", str(config.cpus),
             "--pids-limit", str(config.pids_limit),

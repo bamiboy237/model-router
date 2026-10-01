@@ -20,6 +20,7 @@ from model_router.workers.sandbox import (
     CommandResult,
     DockerSandbox,
     SandboxConfig,
+    SandboxError,
     open_sandbox,
 )
 
@@ -43,11 +44,13 @@ async def verify(task: TaskSpec, patch: str, config: SandboxConfig | None = None
         checks = [_gate(PATCH_APPLIES, applied, CheckReason.PATCH_CONFLICT, apply_ms)]
         notes = [] if applied else ["The patch does not apply cleanly to the base commit."]
         if applied:
-            touched = [path for path in changed if _protected(path, task.protected_paths)]
+            protected = (*task.protected_paths, *patch_paths(task.hidden_tests))
+            touched = [path for path in changed if _protected(path, protected)]
             checks.append(_gate(PROTECTED_PATHS, not touched, CheckReason.PROTECTED_PATH, 0))
             if touched:
                 notes.append("The patch changed protected files: " + ", ".join(touched))
             else:
+                await _apply_hidden_tests(sandbox, task.hidden_tests)
                 for spec in task.verifiers:
                     run = await sandbox.run(shlex.join(spec.command), spec.timeout_s)
                     check = _check(spec, run)
@@ -74,6 +77,26 @@ async def _apply(sandbox: DockerSandbox, patch: str) -> tuple[bool, list[str], i
         f"git diff --cached --name-only --no-renames {sandbox.base_sha}", 60, limit=None
     )
     return True, names.output.split("\n") if names.output else [], elapsed
+
+
+async def _apply_hidden_tests(sandbox: DockerSandbox, hidden_tests: str) -> None:
+    if not hidden_tests:
+        return
+    result = await sandbox.run("git apply -", 60, stdin=hidden_tests.encode())
+    if result.exit_code != 0:
+        # The worker cannot touch these paths, so a failure here is a broken task.
+        raise SandboxError(f"hidden tests do not apply: {result.output.strip()}")
+
+
+def patch_paths(patch: str) -> list[str]:
+    """Paths a unified diff creates, changes, or deletes."""
+    paths = []
+    for line in patch.splitlines():
+        if line.startswith(("--- a/", "+++ b/")):
+            path = line[6:].split("\t")[0]
+            if path not in paths:
+                paths.append(path)
+    return paths
 
 
 def _protected(path: str, patterns: tuple[str, ...]) -> bool:

@@ -36,7 +36,7 @@ The code builds a simulation product for support-refund agents. Not one line of 
 | `plan.py` | A seeded N-arm schedule with deterministic trial IDs, which makes runs reproducible and resumable | `_build_support_suite_iteration_plan` and `IterationIdentity` in `experiment/contracts.py` | 90 lines |
 | `execute.py` | A timeout and an error code per trial, where one failure does not stop the run | `execute_experiment` in `experiment/engine.py` | 60 lines |
 | `models.py` | The only working provider code, with cache tokens added to usage | `build_pydantic_ai_model` and `_UsageTracker` in `adapters/pydantic_ai_agent.py` | 60 lines |
-| `split.py` | A holdout split by family, which stops leakage in tickets `04` and `06` | `build_dataset_manifest` in `regression/dataset.py` | 30 lines |
+| `split.py` | A holdout split by family, which stops leakage in tickets `03b` and `06` | `build_dataset_manifest` in `regression/dataset.py` | 30 lines |
 
 If ticket `01` adopts pydantic-ai, `models.py` moves into model-router.
 

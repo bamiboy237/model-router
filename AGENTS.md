@@ -10,8 +10,8 @@ Follow the tickets in numeric order. Finish the deterministic execution and eval
 
 The stages are:
 
-1. `00` through `03b`: establish contracts, workers, routing, verification, and escalation. Then build the trial lab in `src/trial_lab/` on the core stripped from `simulate`.
-2. `04` through `05`: build the benchmark and complete the rule-based MVP orchestrator.
+1. `00` through `03b`: establish contracts, workers, routing, verification, and escalation. Then build the trial lab in `src/trial_lab/`. The lab is a data factory: agents work on real tasks, and every trial becomes a training record. It also holds the benchmark and the fixed baselines.
+2. `05`: build the orchestrator harness, an agent that delegates subtasks through the router.
 3. `06` through `12`: add outcome prediction, policy utility, stateful context, replay, drift checks, safe rollout, and online evaluation.
 4. `13` through `16`: add parallel task execution, local-execution decisions, adaptive specialization, and production control-plane interfaces.
 

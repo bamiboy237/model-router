@@ -46,7 +46,7 @@ Build the deterministic path before training a router.
 3. Record tokens, cost, latency, outcome, and verifier output for every run.
 4. Add a rule-based router with explicit capability priors.
 5. Create benchmark tasks for exploration, implementation, tests, debugging, refactoring, and architecture.
-6. Strip `simulate` to its trial-lab core (ticket `03a`) and move it into `src/trial_lab/`, then build the lab that runs those tasks and writes trial records (ticket `03b`).
+6. Strip `simulate` to its trial-lab core (ticket `03a`) and move it into `src/trial_lab/`. Then build the lab (ticket `03b`): agents work on real tasks in Docker, and every trial becomes a training record. The lab also holds the benchmark and the fixed baselines.
 
 The first router uses configuration, not machine learning:
 
@@ -62,11 +62,11 @@ models:
 
 These are hypotheses. Evaluation data must be able to confirm or replace them.
 
-### MVP: prove task-level routing (`04` through `05`)
+### MVP: prove task-level routing (`05`)
 
 The MVP is complete when it can:
 
-1. Accept a coding goal and create bounded subtasks.
+1. Accept a coding goal in an orchestrator agent that delegates bounded subtasks through the router.
 2. Send each subtask a minimal context packet.
 3. Select a worker with the rule-based router.
 4. Verify results with tests, type checks, or a task-specific checker.

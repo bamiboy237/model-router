@@ -71,7 +71,7 @@ Run `ruff`, `mypy --strict`, and the schema check. Then run a throwaway script w
 
 - Tally results are reported, not applied. Turning them into new priors and a new `policy_version` belongs to ticket `06`, after offline evaluation.
 - Feedback is selected data. Only routed models get reviewed, and users who review differ from users who do not.
-- Only command checks exist. Browser checks can run as commands with kind `browser`. Screenshot references and model judges wait for frontend fixtures in tickets `03b` and `04`.
+- Only command checks exist. Browser checks can run as commands with kind `browser`. Screenshot references and model judges wait for frontend tasks in ticket `03b`.
 - Only listed paths are protected. A patch can still weaken checks through files the task does not list, such as test configuration.
 - The time budget is checked between attempts. One attempt can run past it, up to the role's own time limit.
 - The cost budget uses expected cost. Actual cost can exceed it by up to one attempt.

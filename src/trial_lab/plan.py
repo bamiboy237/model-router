@@ -4,8 +4,8 @@ from uuid import UUID, uuid5
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from model_router.contracts import ModelRef
 from trial_lab.hashing import content_hash
-from trial_lab.models import ModelRef
 
 TRIAL_NAMESPACE = UUID("d5dc6ec7-e058-4a64-bf55-e4dbe9c546af")
 

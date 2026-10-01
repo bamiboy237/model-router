@@ -145,6 +145,11 @@ class TaskSpec(Contract):
     protected_paths: tuple[Id, ...] = Field(
         default=(), description="Glob patterns. A patch that changes a matching path fails."
     )
+    hidden_tests: str = Field(
+        default="",
+        description="A patch applied only when checking. The worker never sees it, "
+        "and the paths it touches are protected.",
+    )
 
     @model_validator(mode="after")
     def _valid_tags_and_verifiers(self) -> Self:
@@ -163,6 +168,7 @@ class TaskSpec(Contract):
             context_refs=self.context_refs,
             verifiers=self.verifiers,
             protected_paths=self.protected_paths,
+            hidden_tests_hash=sha256_text(self.hidden_tests) if self.hidden_tests else None,
         )
 
 
@@ -178,6 +184,7 @@ class TaskSummary(Contract):
     context_refs: tuple[ContextRef, ...]
     verifiers: tuple[VerifierSpec, ...]
     protected_paths: tuple[Id, ...]
+    hidden_tests_hash: Sha256 | None = None
 
     @model_validator(mode="after")
     def _valid_tags(self) -> Self:
