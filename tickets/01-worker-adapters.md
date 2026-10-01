@@ -41,7 +41,7 @@ Run `ruff`, `mypy --strict`, and the schema check. Then run a throwaway script w
 ## Limitations
 
 - Prices are the standard tier with short context. Long-context and batch rates are not modeled.
-- Model choices per role are starting hypotheses. Ticket `06` replaces them with evidence.
+- Roles do not choose models. The router picks the model for each job (ticket `02`).
 - The default image is `python:3.12`. It has no `pytest`, and the sandbox has no network to install it. A task that needs tools must use an image that already contains them. Ticket `03b` adds per-task images.
 - The time budget covers the agent loop, not sandbox setup.
-- No live provider run has been recorded yet.
+- Live runs have been checked by hand only (`gemini-3.8-flash`, `gpt-5.6-sol`). No trace from them is stored.
