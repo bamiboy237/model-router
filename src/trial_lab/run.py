@@ -326,10 +326,7 @@ async def run_trial(
         task=task.spec.summary(),
         budget=ExecutionBudget(
             max_attempts=1,
-            # The role's token limit bounds a trial's cost; all output is the worst case.
-            max_cost_micro_usd=settings.prices.cost_micro_usd(
-                arm.model, TokenUsage(output_tokens=task.role.max_total_tokens)
-            ),
+            max_cost_micro_usd=_max_cost(task.role, arm, settings),
             max_active_ms=int(
                 (task.role.time_budget_s + sum(v.timeout_s for v in task.spec.verifiers)) * 1000
             ),
@@ -373,6 +370,15 @@ def _assignment(
         role=task.receipt.role,
         rationale="stage 1 assigns every arm to every task",
     )
+
+
+def _max_cost(role: WorkerRole, arm: Arm, settings: Settings) -> int:
+    if role.max_cost_usd is not None:
+        return int(role.max_cost_usd * 1_000_000)
+    assert role.max_total_tokens is not None
+    # All output is the worst case under a token limit.
+    tokens = TokenUsage(output_tokens=role.max_total_tokens)
+    return settings.prices.cost_micro_usd(arm.model, tokens)
 
 
 def _stop(status: ResultStatus, cost_micro_usd: int, active_ms: int) -> StopReceipt:

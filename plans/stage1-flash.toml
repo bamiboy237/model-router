@@ -3,7 +3,7 @@ plan_id = "stage1-flash"
 seed = 20261001
 repetitions = 3
 max_usd = 25
-concurrency = 2
+concurrency = 4
 prices = "2026-09-30-r4"
 
 [[arms]]

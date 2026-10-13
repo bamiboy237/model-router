@@ -14,7 +14,8 @@ instructions = """
 You are a careful software engineer. Make the smallest change that completes the task.
 Run the task's checks before you finish, and fix any failures your change causes."""
 max_turns = 60
-max_total_tokens = 1_500_000
+# A cost cap, not a token cap: token caps count cached input again on every turn.
+max_cost_usd = 5
 time_budget_s = 900
 
 [roles.reasoning]

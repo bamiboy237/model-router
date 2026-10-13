@@ -102,6 +102,7 @@ async def run_worker(
         capabilities=capabilities,
     )
     limits = UsageLimits(request_limit=role.max_turns, total_tokens_limit=role.max_total_tokens)
+    max_cost = int(role.max_cost_usd * 1_000_000) if role.max_cost_usd is not None else None
     settings: ModelSettings | None = {"thinking": thinking} if thinking is not None else None
     usage = RunUsage()
     transcript = b""
@@ -119,7 +120,13 @@ async def run_worker(
                 ) as run:
                     try:
                         async for _ in run:
-                            pass
+                            if max_cost is not None:
+                                spent = prices.cost_micro_usd(model_ref, _tokens(run.usage))
+                                if spent > max_cost:
+                                    raise UsageLimitExceeded(
+                                        f"cost ${spent / 1e6:.4f} exceeded the role's "
+                                        f"max_cost_usd of ${role.max_cost_usd}"
+                                    )
                     finally:
                         usage = run.usage
                         transcript = run.all_messages_json()
@@ -132,12 +139,7 @@ async def run_worker(
         if error_code is None:
             patch = await sandbox.diff()
 
-    tokens = TokenUsage(
-        input_tokens=usage.input_tokens,
-        output_tokens=usage.output_tokens,
-        cache_read_tokens=usage.cache_read_tokens,
-        cache_write_tokens=usage.cache_write_tokens,
-    )
+    tokens = _tokens(usage)
     return TaskResult(
         task_id=task.task_id,
         attempt_id=attempt_id,
@@ -149,6 +151,15 @@ async def run_worker(
         cost_micro_usd=prices.cost_micro_usd(model_ref, tokens),
         latency_ms=latency_ms,
         transcript=transcript.decode(),
+    )
+
+
+def _tokens(usage: RunUsage) -> TokenUsage:
+    return TokenUsage(
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        cache_read_tokens=usage.cache_read_tokens,
+        cache_write_tokens=usage.cache_write_tokens,
     )
 
 

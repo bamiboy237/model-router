@@ -175,6 +175,8 @@ Live smoke (`plans/smoke.toml`, run `smoke-1`): `typedkey-kwargs` with Gemini 3.
 - Gemini reports thinking tokens inside `output_tokens` (38,755 of 41,416 here), so they are billed at the output rate.
 - The worker ran `git log`, `git reflog`, and `git tag` to look for the fix. The snapshot showed one commit.
 
+The coding role now caps cost, not tokens: `max_cost_usd = 5` in `config/workers.toml`, priced with the price table after each response. Run `smoke-2` with the cap passed every check: 38 requests, 1,578,185 input tokens (1,354,129 cached), 45,249 output tokens, $0.44, and 417 s. Its recorded tokens equal the transcript's sum.
+
 Known limits:
 
 - The budget reservation is an estimate. One trial can cost more than its reservation, so a run can end slightly over `max_usd`. The role's token limit bounds how far.
