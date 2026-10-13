@@ -8,6 +8,7 @@ from model_router.contracts import (
     AttemptCause,
     CheckResult,
     Contract,
+    DecisionReceipt,
     Domain,
     ErrorCode,
     ExecutionTrace,
@@ -40,9 +41,15 @@ class LabInfo(Contract):
     trial_id: UUID
     run_id: Id
     plan_hash: Sha256
+    arm_id: Id
+    thinking: Id | None = Field(description="Reasoning effort the arm set; None is the default.")
     repetition: NonNegativeInt
     task_family: Id
     artifacts_path: Id
+    router_receipt: DecisionReceipt = Field(
+        description="The model the rule-based router would have picked. The lab assigned the "
+        "trial's model by plan, so this is a shadow decision."
+    )
 
 
 class TrialRecord(Contract):

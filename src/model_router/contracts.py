@@ -262,6 +262,7 @@ class TaskResult(Contract):
     usage: TokenUsage
     cost_micro_usd: NonNegativeInt
     latency_ms: NonNegativeInt
+    transcript: str = Field(default="", description="The run's messages as pydantic_ai JSON.")
 
     @model_validator(mode="after")
     def _patch_xor_error(self) -> Self:

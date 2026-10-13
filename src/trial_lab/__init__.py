@@ -1,18 +1,24 @@
-from trial_lab.execute import Completed, Failed, TrialError, run_trials
 from trial_lab.hashing import canonical_json, content_hash
-from trial_lab.plan import Arm, Plan, Trial, build_trials
+from trial_lab.plan import Arm, Plan, PlanFile, Trial, build_trials, load_plan
+from trial_lab.run import PlanError, PreparedPlan, RunSummary, load_settings, prepare, run_plan
 from trial_lab.split import split_by_family
+from trial_lab.store import RunStore
 
 __all__ = [
     "Arm",
-    "Completed",
-    "Failed",
     "Plan",
+    "PlanError",
+    "PlanFile",
+    "PreparedPlan",
+    "RunStore",
+    "RunSummary",
     "Trial",
-    "TrialError",
     "build_trials",
     "canonical_json",
     "content_hash",
-    "run_trials",
+    "load_plan",
+    "load_settings",
+    "prepare",
+    "run_plan",
     "split_by_family",
 ]

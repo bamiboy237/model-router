@@ -9,6 +9,59 @@
       "title": "AttemptCause",
       "type": "string"
     },
+    "Candidate": {
+      "additionalProperties": false,
+      "properties": {
+        "constraint_violations": {
+          "default": [],
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Constraint Violations",
+          "type": "array"
+        },
+        "expected_cost_micro_usd": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Cost Micro Usd"
+        },
+        "model": {
+          "$ref": "#/$defs/ModelRef"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "score": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Score"
+        }
+      },
+      "required": [
+        "model",
+        "score",
+        "reason"
+      ],
+      "title": "Candidate",
+      "type": "object"
+    },
     "CheckReason": {
       "enum": [
         "assertion_failed",
@@ -101,6 +154,73 @@
       "title": "CheckResult",
       "type": "object"
     },
+    "DecisionReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "candidates": {
+          "items": {
+            "$ref": "#/$defs/Candidate"
+          },
+          "minItems": 1,
+          "title": "Candidates",
+          "type": "array"
+        },
+        "decision_id": {
+          "minLength": 1,
+          "title": "Decision Id",
+          "type": "string"
+        },
+        "policy_version": {
+          "minLength": 1,
+          "title": "Policy Version",
+          "type": "string"
+        },
+        "rationale": {
+          "minLength": 1,
+          "title": "Rationale",
+          "type": "string"
+        },
+        "role": {
+          "minLength": 1,
+          "title": "Role",
+          "type": "string"
+        },
+        "selected": {
+          "$ref": "#/$defs/ModelRef"
+        },
+        "task_features": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "title": "Task Features",
+          "type": "object"
+        }
+      },
+      "required": [
+        "decision_id",
+        "policy_version",
+        "task_features",
+        "candidates",
+        "selected",
+        "role",
+        "rationale"
+      ],
+      "title": "DecisionReceipt",
+      "type": "object"
+    },
     "Domain": {
       "enum": [
         "frontend",
@@ -144,6 +264,11 @@
     "LabInfo": {
       "additionalProperties": false,
       "properties": {
+        "arm_id": {
+          "minLength": 1,
+          "title": "Arm Id",
+          "type": "string"
+        },
         "artifacts_path": {
           "minLength": 1,
           "title": "Artifacts Path",
@@ -159,6 +284,10 @@
           "title": "Repetition",
           "type": "integer"
         },
+        "router_receipt": {
+          "$ref": "#/$defs/DecisionReceipt",
+          "description": "The model the rule-based router would have picked. The lab assigned the trial's model by plan, so this is a shadow decision."
+        },
         "run_id": {
           "minLength": 1,
           "title": "Run Id",
@@ -168,6 +297,19 @@
           "minLength": 1,
           "title": "Task Family",
           "type": "string"
+        },
+        "thinking": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Reasoning effort the arm set; None is the default.",
+          "title": "Thinking"
         },
         "trial_id": {
           "format": "uuid",
@@ -179,9 +321,12 @@
         "trial_id",
         "run_id",
         "plan_hash",
+        "arm_id",
+        "thinking",
         "repetition",
         "task_family",
-        "artifacts_path"
+        "artifacts_path",
+        "router_receipt"
       ],
       "title": "LabInfo",
       "type": "object"

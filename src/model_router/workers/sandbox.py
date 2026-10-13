@@ -28,6 +28,9 @@ class SandboxConfig(Contract):
     memory: Id = "2g"
     cpus: float = Field(default=2, gt=0)
     pids_limit: int = Field(default=512, ge=1)
+    # The container exits on its own after this, so a killed host process cannot leave it
+    # running forever. It must outlast the longest worker time budget plus verification.
+    lifetime_s: int = Field(default=7200, ge=1)
 
 
 @dataclass(frozen=True)
@@ -93,6 +96,7 @@ async def open_sandbox(task: TaskSpec, config: SandboxConfig) -> AsyncIterator[D
         await _host("git", "-C", str(host_dir), "checkout", "--quiet", "--detach", task.base_sha)
         container_id = await _host(
             "docker", "run", "--detach", "--rm",
+            "--label", "model-router.sandbox=1",
             "--network", "none",
             "--user", f"{os.getuid()}:{os.getgid()}",
             "--env", "HOME=/tmp",
@@ -104,7 +108,7 @@ async def open_sandbox(task: TaskSpec, config: SandboxConfig) -> AsyncIterator[D
             "--pids-limit", str(config.pids_limit),
             "--volume", f"{host_dir}:{WORKDIR}",
             "--workdir", WORKDIR,
-            config.image, "sleep", "infinity",
+            config.image, "sleep", str(config.lifetime_s),
         )
         try:
             yield DockerSandbox(container_id.strip(), task.base_sha)

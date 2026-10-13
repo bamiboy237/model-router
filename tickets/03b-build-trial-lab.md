@@ -2,7 +2,7 @@
 
 ## Stage
 
-Beginning. This ticket blocks ticket `05`. It absorbs the old ticket `04` (benchmark and baselines).
+Beginning. Milestones 1 and 2 are done. This ticket blocks ticket `05`. It absorbs the old ticket `04` (benchmark and baselines).
 
 ## Purpose
 
@@ -94,32 +94,39 @@ Known limits:
 
 ## Plans and trials
 
-An arm is `(model, context_strategy)`, as defined in `trial_lab.plan.Arm`. A `plan.toml` file declares the task selector, the arms, the repetitions, the seed, `assignment`, the budget (`max_usd`), the concurrency limit, and the price table version. `build_trials` turns it into trials.
+An arm is `(model, context_strategy, thinking)`, as defined in `trial_lab.plan.Arm`. `thinking` is the reasoning effort (`minimal` to `xhigh`) or unset for the model's default. The only context strategy is `task_files`: the worker is pointed at the files the task lists.
+
+A plan file in `plans/` declares the task selector (`tasks`, `families`, or neither for every task), the arms, the repetitions, the seed, `assignment`, the budget (`max_usd`), the concurrency limit, and the price table version (`prices`). `PlanFile.resolve` turns it into a `Plan`, and `build_trials` turns that into trials. The plan hash covers the resolved task IDs, arms, repetitions, seed, and assignment, but not the budget or concurrency, so raising the budget does not change trial IDs.
 
 - Each trial is one attempt by one arm on one task, run with `model_router`'s worker and `verify()`. The lab does not retry or escalate. Retries are a routing decision, not part of the data.
-- Each trial appends one JSONL row built with `model_router.trial_records(trace, lab)` from a single-attempt trace.
-- The rule-based router's receipt for the task is stored with each trial.
-- Raw prompts, responses, patches, and verifier logs go in `runs/<run_id>/artifacts/<trial_id>/`, not in the row.
+- Each trial appends one JSONL row built with `model_router.trial_records(trace, lab)` from a single-attempt trace. The attempt's decision has policy `lab.all_arms`; its task features come from the router.
+- `lab.router_receipt` holds the rule-based router's receipt for the task: the model it would have picked. `lab.arm_id` and `lab.thinking` name the arm.
+- Worker transcripts, patches, verifier notes, and worker errors go in `runs/<run_id>/artifacts/<trial_id>/`, not in the row.
+- A provider error (rate limit, outage, network) says nothing about the model. The trial goes to `errors.jsonl`, not `trials.jsonl`, and stays pending. Three in a row stop the run.
+- A setup error, such as a rejected API key or a Docker failure, stops the run. In-flight trials finish first.
 
 ## Store, resume, and budget
 
 ```text
 runs/<run_id>/
-	plan.toml
-	trials.jsonl     append-only
+	plan.toml        the plan file as given at the start
+	trials.jsonl     append-only, one row per finished trial
+	errors.jsonl     provider errors; their cost counts toward the budget
 	artifacts/
 ```
 
-- To resume a run, execute the plan again. The runner skips every `trial_id` already in `trials.jsonl`.
-- `run_trials` gains a concurrency limit. Each trial keeps its own timeout.
-- The runner estimates cost before it starts and tracks recorded spend as trials finish. It stops scheduling trials before spend exceeds `max_usd`.
-- The first live budget is $25. Until then, runs use scripted models only.
+- `lab run <plan>` starts a new run, `<plan_id>-<UTC time>`. `lab run <plan> --run-id <id>` resumes that run. It refuses if the resolved plan hash differs from the stored plan's, and skips every `trial_id` already in `trials.jsonl`. A partial last row from a killed run is dropped.
+- A new run of the same plan has the same trial IDs and a new `run_id`, so task identity stays stable and no evidence is overwritten.
+- Up to `concurrency` trials run at once. Each worker keeps its role's time budget, and each verifier its own timeout.
+- Before it starts a trial, the runner reserves the trial's expected cost: the larger of the router's usage guess and the highest cost that arm has recorded. It starts no trial whose reservation would take spend, including other reservations, past `max_usd`. When over, it waits for in-flight trials to free their reservations before it stops.
+- Every `lab run` runs admission on the plan's tasks first. A plan with an unpriced model, or a price table version that differs from `config/prices.toml`, fails before any model call.
+- The first live budget is $25.
 
 ## Command-line interface
 
 - `lab tasks check`: validates task files and runs admission.
 - `lab plan <plan.toml>`: prints the trial count and the estimated cost.
-- `lab run <plan.toml>`: executes or resumes a plan.
+- `lab run <plan.toml> [--run-id <id>]`: starts a run, or resumes the run with that id.
 - `lab report <run_id>`: prints success, cost, and latency per arm, task kind, and family, with `insufficient_evidence` for cells below the minimum sample size. It also scores the fixed baselines on the run's data.
 - `lab export <run_id>... --split`: writes the training and holdout datasets for ticket `06`.
 
@@ -151,6 +158,28 @@ Run `ruff`, `mypy --strict`, and the schema check. Then:
 - Run `lab tasks check` against the seed corpus, plus one task with a broken verifier.
 - Run the 90-trial scripted plan, kill it partway, and resume it.
 - Before the first live run, run one live smoke plan of 1 task × 1 model × 1 repetition, and compare the recorded token counts with the provider response.
+
+## Milestone 2 results
+
+Checked with throwaway scripts, not committed:
+
+- Scripted plan of 10 tasks × 3 arms (reference, bad, and empty patches) × 3 repetitions, concurrency 4. Killed with `SIGKILL` after 30 rows, with a partial row appended by hand. The resume dropped the partial row and recorded the other 60. All 90 trial IDs are unique and match the plan. Every reference trial passed; every bad and empty trial failed.
+- Building the same plan twice gives identical trials; another seed gives other IDs and order.
+- An unpriced model and a stale price table version both fail in `prepare`, before any model call.
+- A $0.26 budget with about $0.25 reserved per trial stopped after 6 trials, with $0.025 recorded.
+
+Live smoke (`plans/smoke.toml`, run `smoke-1`): `typedkey-kwargs` with Gemini 3.8 Flash, thinking high.
+
+- Failed with `budget_exceeded`: 1,522,518 total tokens against the coding role's 1,500,000, after 40 requests, 385 s, and $0.41. The 39th tool call made a correct-looking edit. The limit counts every request's full input, cached tokens included, so long sessions reach it even when cost is low.
+- Tokens match. The record's usage equals the sum of all 40 provider responses. The transcript holds only 39, because the response that crossed the limit is billed and counted but never joins the message history. On those 39, the price table's cost equals pydantic-ai's price data to the micro-dollar.
+- Gemini reports thinking tokens inside `output_tokens` (38,755 of 41,416 here), so they are billed at the output rate.
+- The worker ran `git log`, `git reflog`, and `git tag` to look for the fix. The snapshot showed one commit.
+
+Known limits:
+
+- The budget reservation is an estimate. One trial can cost more than its reservation, so a run can end slightly over `max_usd`. The role's token limit bounds how far.
+- `SIGKILL` on the runner leaves its sandbox containers running. They carry the label `model-router.sandbox=1` and exit after `SandboxConfig.lifetime_s` (2 hours).
+- `lab run` does not read `.env`. Load keys into the environment first.
 
 ## Notes
 

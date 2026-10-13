@@ -1,0 +1,13 @@
+# Live smoke: 1 task x 1 model x 1 repetition. Run it before any larger live plan and
+# compare the recorded tokens with the provider response.
+plan_id = "smoke"
+seed = 1
+tasks = ["typedkey-kwargs"]
+max_usd = 2
+concurrency = 1
+prices = "2026-09-30-r4"
+
+[[arms]]
+arm_id = "flash-high"
+model = { provider = "google", model_id = "gemini-3.8-flash" }
+thinking = "high"

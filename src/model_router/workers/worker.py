@@ -17,6 +17,7 @@ from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.models.openai import OpenAIResponsesModel
 from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.providers.openai import OpenAIProvider
+from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.usage import RunUsage, UsageLimits
 from pydantic_ai_harness import CodeMode
 
@@ -81,11 +82,13 @@ async def run_worker(
     sandbox_config: SandboxConfig | None = None,
     model: Model | None = None,
     note: str | None = None,
+    thinking: ThinkingEffort | None = None,
 ) -> TaskResult:
     """Run one agent loop on a task in a fresh sandbox and return its patch or error.
 
     Pass model to replace the provider with a scripted pydantic_ai FunctionModel or TestModel.
     Pass note to tell the worker why an earlier attempt at the task failed.
+    Pass thinking to set the reasoning effort; None keeps the model's default.
     """
     prices.price_for(model_ref)
     capabilities: list[AbstractCapability[DockerSandbox]] = (
@@ -99,7 +102,9 @@ async def run_worker(
         capabilities=capabilities,
     )
     limits = UsageLimits(request_limit=role.max_turns, total_tokens_limit=role.max_total_tokens)
+    settings: ModelSettings | None = {"thinking": thinking} if thinking is not None else None
     usage = RunUsage()
+    transcript = b""
     patch: str | None = None
     error_code: ErrorCode | None = None
     error_message: str | None = None
@@ -109,12 +114,15 @@ async def run_worker(
         prompt = _prompt(task, context, note)
         try:
             async with asyncio.timeout(role.time_budget_s):
-                async with agent.iter(prompt, deps=sandbox, usage_limits=limits) as run:
+                async with agent.iter(
+                    prompt, deps=sandbox, usage_limits=limits, model_settings=settings
+                ) as run:
                     try:
                         async for _ in run:
                             pass
                     finally:
                         usage = run.usage
+                        transcript = run.all_messages_json()
         except Exception as exc:
             error_code = classify_error(exc)
             if error_code is None:
@@ -140,6 +148,7 @@ async def run_worker(
         usage=tokens,
         cost_micro_usd=prices.cost_micro_usd(model_ref, tokens),
         latency_ms=latency_ms,
+        transcript=transcript.decode(),
     )
 
 

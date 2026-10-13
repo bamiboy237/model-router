@@ -175,6 +175,16 @@ docker build -t model-router/node:1 images/node
 uv run lab tasks check
 ```
 
+A plan in `plans/` lists tasks and arms. Print its trial count and estimated cost, then run it. Load provider keys into the environment first; the lab does not read `.env`.
+
+```sh
+uv run lab plan plans/smoke.toml
+set -a && . ./.env && set +a
+uv run lab run plans/smoke.toml
+```
+
+A run writes `runs/<run_id>/`. If a run stops, the last lines of its output show the command that resumes it.
+
 ## Project documents
 
 - [`AGENTS.md`](AGENTS.md): instructions for agents working in this project.
