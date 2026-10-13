@@ -1,0 +1,39 @@
+diff --git a/src/components/ProductList.tsx b/src/components/ProductList.tsx
+index f0907e7..e10491b 100644
+--- a/src/components/ProductList.tsx
++++ b/src/components/ProductList.tsx
+@@ -1,5 +1,6 @@
+ import { formatCents } from "../money";
+-import type { Product } from "../products";
++import { useState } from "react";
++import type { Category, Product } from "../products";
+ 
+ interface Props {
+   products: readonly Product[];
+@@ -7,11 +8,25 @@ interface Props {
+ }
+ 
+ export function ProductList({ products, onAdd }: Props) {
++  const [category, setCategory] = useState<Category | "All">("All");
++  const categories: Category[] = ["Books", "Kitchen", "Garden"];
++  const shown = category === "All" ? products : products.filter((p) => p.category === category);
+   return (
+     <section aria-label="Products">
+       <h2>Products</h2>
++      <label>
++        Category{" "}
++        <select value={category} onChange={(e) => setCategory(e.target.value as Category | "All")}>
++          <option value="All">All</option>
++          {categories.map((c) => (
++            <option key={c} value={c}>
++              {c}
++            </option>
++          ))}
++        </select>
++      </label>
+       <ul>
+-        {products.map((product) => (
++        {shown.map((product) => (
+           <li key={product.id} data-testid="product">
+             <span>{product.name}</span> <span>{formatCents(product.priceCents)}</span>{" "}
+             <button type="button" onClick={() => onAdd(product.id)}>

@@ -1,0 +1,23 @@
+diff --git a/examples/tutorial/flaskr/db.py b/examples/tutorial/flaskr/db.py
+index dec22fde..fc560d1d 100644
+--- a/examples/tutorial/flaskr/db.py
++++ b/examples/tutorial/flaskr/db.py
+@@ -20,6 +20,18 @@ def get_db():
+     return g.db
+ 
+ 
++def get_user_by_id(user_id):
++    """Return the user with this id, or None."""
++    return get_db().execute("SELECT * FROM user WHERE id = ?", (user_id,)).fetchone()
++
++
++def get_user_by_username(username):
++    """Return the user with this username, or None."""
++    return (
++        get_db().execute("SELECT * FROM user WHERE username = ?", (username,)).fetchone()
++    )
++
++
+ def close_db(e=None):
+     """If this request connected to the database, close the
+     connection.

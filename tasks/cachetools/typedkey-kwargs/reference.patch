@@ -1,0 +1,12 @@
+diff --git a/src/cachetools/keys.py b/src/cachetools/keys.py
+index c7ff539..82bdc5f 100644
+--- a/src/cachetools/keys.py
++++ b/src/cachetools/keys.py
+@@ -54,6 +54,7 @@ def typedkey(*args, **kwargs):
+     if kwargs:
+         sorted_kwargs = tuple(sorted(kwargs.items()))
+         key = _HashedTuple(args + _kwmark + sorted_kwargs)
++        key += tuple(type(v) for _, v in sorted_kwargs)
+     else:
+         key = _HashedTuple(args)
+     key += tuple(type(v) for v in args)

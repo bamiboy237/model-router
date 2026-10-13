@@ -1,0 +1,13 @@
+diff --git a/src/cachetools/__init__.py b/src/cachetools/__init__.py
+index 2b064c6..2347b1f 100644
+--- a/src/cachetools/__init__.py
++++ b/src/cachetools/__init__.py
+@@ -91,7 +91,7 @@ class Cache(collections.abc.MutableMapping):
+                 self.popitem()
+         self.__data[key] = value
+         self.__size[key] = size
+-        self.__currsize += diffsize
++        self.__currsize = max(0, self.__currsize + diffsize)
+ 
+     def __delitem__(self, key):
+         size = self.__size.pop(key)

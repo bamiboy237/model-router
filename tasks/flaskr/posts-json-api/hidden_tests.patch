@@ -1,0 +1,52 @@
+diff --git a/examples/tutorial/tests/test_lab_hidden_api.py b/examples/tutorial/tests/test_lab_hidden_api.py
+new file mode 100644
+index 00000000..b4150a7d
+--- /dev/null
++++ b/examples/tutorial/tests/test_lab_hidden_api.py
+@@ -0,0 +1,46 @@
++from flaskr.db import get_db
++
++FIRST = {
++    "id": 1,
++    "title": "test title",
++    "body": "test\nbody",
++    "author": "test",
++    "created": "2018-01-01T00:00:00",
++}
++
++
++def test_list(client):
++    response = client.get("/api/posts")
++    assert response.status_code == 200
++    assert response.get_json() == {"posts": [FIRST]}
++
++
++def test_list_newest_first(app, client):
++    with app.app_context():
++        db = get_db()
++        db.execute(
++            "INSERT INTO post (title, body, author_id, created)"
++            " VALUES ('later', 'b', 2, '2019-06-01 12:30:00')"
++        )
++        db.commit()
++    posts = client.get("/api/posts").get_json()["posts"]
++    assert [p["title"] for p in posts] == ["later", "test title"]
++    assert posts[0]["author"] == "other"
++    assert posts[0]["created"] == "2019-06-01T12:30:00"
++
++
++def test_one(client):
++    response = client.get("/api/posts/1")
++    assert response.status_code == 200
++    assert response.get_json() == FIRST
++
++
++def test_missing(client):
++    response = client.get("/api/posts/99")
++    assert response.status_code == 404
++    assert response.get_json() == {"error": "not found"}
++
++
++def test_no_login_needed(client, auth):
++    auth.logout()
++    assert client.get("/api/posts").status_code == 200

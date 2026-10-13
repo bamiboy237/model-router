@@ -1,0 +1,17 @@
+diff --git a/src/cachetools/__init__.py b/src/cachetools/__init__.py
+index c9eecb2..073622c 100644
+--- a/src/cachetools/__init__.py
++++ b/src/cachetools/__init__.py
+@@ -157,6 +157,12 @@ class Cache(collections.abc.MutableMapping):
+         """The maximum size of the cache."""
+         return self.__maxsize
+ 
++    @maxsize.setter
++    def maxsize(self, value):
++        if value < 0:
++            raise ValueError("maxsize must be non-negative")
++        self.__maxsize = value
++
+     @property
+     def currsize(self):
+         """The current size of the cache."""

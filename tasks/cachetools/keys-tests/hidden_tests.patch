@@ -1,0 +1,109 @@
+diff --git a/.lab/kill_mutants.sh b/.lab/kill_mutants.sh
+new file mode 100644
+index 0000000..52c61a7
+--- /dev/null
++++ b/.lab/kill_mutants.sh
+@@ -0,0 +1,18 @@
++#!/bin/sh
++# Usage: kill_mutants.sh "<test command>"
++# Applies each mutant in .lab/mutants, runs the tests, and fails if any mutant survives.
++status=0
++for mutant in .lab/mutants/*.patch; do
++  if ! git apply "$mutant"; then
++    echo "mutant $mutant does not apply; was the code under test changed?"
++    exit 2
++  fi
++  if sh -c "$1" >/dev/null 2>&1; then
++    echo "survived: $(basename "$mutant")"
++    status=1
++  else
++    echo "killed: $(basename "$mutant")"
++  fi
++  git apply -R "$mutant"
++done
++exit $status
+diff --git a/.lab/mutants/add-plain-tuple.patch b/.lab/mutants/add-plain-tuple.patch
+new file mode 100644
+index 0000000..df967ce
+--- /dev/null
++++ b/.lab/mutants/add-plain-tuple.patch
+@@ -0,0 +1,11 @@
++--- a/src/cachetools/keys.py
+++++ b/src/cachetools/keys.py
++@@ -20,7 +20,7 @@
++         return hashvalue
++ 
++     def __add__(self, other, add=tuple.__add__):
++-        return _HashedTuple(add(self, other))
+++        return add(self, other)
++ 
++     def __radd__(self, other, add=tuple.__add__):
++         return _HashedTuple(add(other, self))
+diff --git a/.lab/mutants/hashkey-drops-kwargs.patch b/.lab/mutants/hashkey-drops-kwargs.patch
+new file mode 100644
+index 0000000..eacb054
+--- /dev/null
++++ b/.lab/mutants/hashkey-drops-kwargs.patch
+@@ -0,0 +1,11 @@
++--- a/src/cachetools/keys.py
+++++ b/src/cachetools/keys.py
++@@ -38,7 +38,7 @@
++     """Return a cache key for the specified hashable arguments."""
++ 
++     if kwargs:
++-        return _HashedTuple(args + _kwmark + tuple(sorted(kwargs.items())))
+++        return _HashedTuple(args)
++     else:
++         return _HashedTuple(args)
++ 
+diff --git a/.lab/mutants/methodkey-keeps-self.patch b/.lab/mutants/methodkey-keeps-self.patch
+new file mode 100644
+index 0000000..c3146f5
+--- /dev/null
++++ b/.lab/mutants/methodkey-keeps-self.patch
+@@ -0,0 +1,11 @@
++--- a/src/cachetools/keys.py
+++++ b/src/cachetools/keys.py
++@@ -45,7 +45,7 @@
++ 
++ def methodkey(self, *args, **kwargs):
++     """Return a cache key for use with cached methods."""
++-    return hashkey(*args, **kwargs)
+++    return hashkey(self, *args, **kwargs)
++ 
++ 
++ def typedkey(*args, **kwargs):
+diff --git a/.lab/mutants/typedkey-untyped.patch b/.lab/mutants/typedkey-untyped.patch
+new file mode 100644
+index 0000000..46de47f
+--- /dev/null
++++ b/.lab/mutants/typedkey-untyped.patch
+@@ -0,0 +1,11 @@
++--- a/src/cachetools/keys.py
+++++ b/src/cachetools/keys.py
++@@ -57,7 +57,7 @@
++         key += tuple(type(v) for _, v in sorted_kwargs)
++     else:
++         key = _HashedTuple(args)
++-    key += tuple(type(v) for v in args)
+++    key += ()
++     return key
++ 
++ 
+diff --git a/.lab/mutants/unhashable-accepted.patch b/.lab/mutants/unhashable-accepted.patch
+new file mode 100644
+index 0000000..45ef063
+--- /dev/null
++++ b/.lab/mutants/unhashable-accepted.patch
+@@ -0,0 +1,11 @@
++--- a/src/cachetools/keys.py
+++++ b/src/cachetools/keys.py
++@@ -16,7 +16,7 @@
++     def __hash__(self, hash=tuple.__hash__):
++         hashvalue = self.__hashvalue
++         if hashvalue is None:
++-            self.__hashvalue = hashvalue = hash(self)
+++            self.__hashvalue = hashvalue = id(self)
++         return hashvalue
++ 
++     def __add__(self, other, add=tuple.__add__):

@@ -1,0 +1,59 @@
+diff --git a/examples/tutorial/flaskr/__init__.py b/examples/tutorial/flaskr/__init__.py
+index ab96e719..eeda3af4 100644
+--- a/examples/tutorial/flaskr/__init__.py
++++ b/examples/tutorial/flaskr/__init__.py
+@@ -33,11 +33,13 @@ def create_app(test_config=None):
+     db.init_app(app)
+ 
+     # apply the blueprints to the app
++    from . import api
+     from . import auth
+     from . import blog
+ 
+     app.register_blueprint(auth.bp)
+     app.register_blueprint(blog.bp)
++    app.register_blueprint(api.bp)
+ 
+     # make url_for('index') == url_for('blog.index')
+     # in another app, you might define a separate main index here with
+diff --git a/examples/tutorial/flaskr/api.py b/examples/tutorial/flaskr/api.py
+new file mode 100644
+index 00000000..e5948773
+--- /dev/null
++++ b/examples/tutorial/flaskr/api.py
+@@ -0,0 +1,35 @@
++from flask import Blueprint
++from flask import jsonify
++
++from .db import get_db
++
++bp = Blueprint("api", __name__, url_prefix="/api")
++
++_POSTS = (
++    "SELECT p.id, title, body, created, username"
++    " FROM post p JOIN user u ON p.author_id = u.id"
++)
++
++
++def _post_json(post):
++    return {
++        "id": post["id"],
++        "title": post["title"],
++        "body": post["body"],
++        "author": post["username"],
++        "created": str(post["created"]),
++    }
++
++
++@bp.route("/posts")
++def posts():
++    rows = get_db().execute(_POSTS + " ORDER BY created DESC").fetchall()
++    return jsonify(posts=[_post_json(row) for row in rows])
++
++
++@bp.route("/posts/<int:id>")
++def post(id):
++    row = get_db().execute(_POSTS + " WHERE p.id = ?", (id,)).fetchone()
++    if row is None:
++        return jsonify(error="not found"), 404
++    return jsonify(_post_json(row))

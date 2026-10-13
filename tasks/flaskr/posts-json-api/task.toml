@@ -1,0 +1,28 @@
+id = "posts-json-api"
+family = "flaskr"
+kind = "build"
+domain = "backend"
+image = "model-router/python:1"
+overview = "The repository is Flask. The task is in examples/tutorial: flaskr, a small blog app with users, posts, and SQLite. Run its tests with: cd examples/tutorial && python -m pytest -q"
+instruction = """
+Add a read-only JSON API to flaskr (examples/tutorial). It needs no login.
+
+- GET /api/posts returns {"posts": [...]}, newest first, like the index page.
+- GET /api/posts/<id> returns one post object, or 404 with {"error": "not found"}.
+
+A post object has exactly these keys: "id" (int), "title", "body", "author" (the
+author's username), and "created" (ISO 8601 without a time zone, for example
+"2018-01-01T00:00:00"). Put the routes in a new blueprint and add tests.
+"""
+files = ["examples/tutorial/flaskr/__init__.py", "examples/tutorial/flaskr/blog.py", "examples/tutorial/tests/conftest.py"]
+
+[upstream]
+url = "https://github.com/pallets/flask"
+sha = "22d924701a6ae2e4cd01e9a15bbaf3946094af65"
+
+[[verifiers]]
+name = "pytest"
+version = "1"
+kind = "tests"
+command = ["sh", "-c", "cd examples/tutorial && python -m pytest -q"]
+timeout_s = 300

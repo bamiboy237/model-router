@@ -1,0 +1,15 @@
+diff --git a/examples/tutorial/flaskr/blog.py b/examples/tutorial/flaskr/blog.py
+index 11fffdbf..ba416621 100644
+--- a/examples/tutorial/flaskr/blog.py
++++ b/examples/tutorial/flaskr/blog.py
+@@ -118,7 +118,9 @@ def delete(id):
+     Ensures that the post exists and that the logged in user is the
+     author of the post.
+     """
+-    get_post(id, check_author=False)
++    post = get_post(id, check_author=False)
++    if post["author_id"] != g.user["id"]:
++        abort(404)
+     db = get_db()
+     db.execute("DELETE FROM post WHERE id = ?", (id,))
+     db.commit()

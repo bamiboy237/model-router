@@ -1,0 +1,26 @@
+id = "typedkey-kwargs"
+family = "cachetools"
+kind = "fix"
+domain = "general"
+image = "model-router/python:1"
+overview = "cachetools is a Python library of memoizing collections and decorators."
+instruction = """
+Bug report: `cachetools.keys.typedkey` ignores the types of keyword arguments.
+`typedkey(x=1) == typedkey(x=1.0)` is True, so a function decorated with
+`@cached(cache, key=typedkey)` returns the cached result of `f(x=1)` when called as
+`f(x=1.0)`. Positional arguments already work: `typedkey(1) != typedkey(1.0)`.
+Make the types of keyword argument values part of typed keys, for `typedkey` and
+`typedmethodkey`. Keys for calls without keyword arguments must not change.
+"""
+files = ["src/cachetools/keys.py", "tests/test_keys.py"]
+
+[upstream]
+url = "https://github.com/tkem/cachetools"
+sha = "3c082c654c2804b9354e4b62dbd2994f1aac464d"
+
+[[verifiers]]
+name = "pytest"
+version = "1"
+kind = "tests"
+command = ["sh", "-c", "PYTHONPATH=src python -m pytest -q tests"]
+timeout_s = 300

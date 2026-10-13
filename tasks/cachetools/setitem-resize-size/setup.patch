@@ -1,0 +1,13 @@
+diff --git a/src/cachetools/__init__.py b/src/cachetools/__init__.py
+index c9eecb2..2b064c6 100644
+--- a/src/cachetools/__init__.py
++++ b/src/cachetools/__init__.py
+@@ -89,8 +89,6 @@ class Cache(collections.abc.MutableMapping):
+             diffsize = size - self.__size[key]
+             while self.__currsize + diffsize > maxsize:
+                 self.popitem()
+-                if key not in self.__data:
+-                    diffsize = size
+         self.__data[key] = value
+         self.__size[key] = size
+         self.__currsize += diffsize

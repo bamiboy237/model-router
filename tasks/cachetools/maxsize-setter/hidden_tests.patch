@@ -1,0 +1,76 @@
+diff --git a/tests/test_lab_hidden_maxsize.py b/tests/test_lab_hidden_maxsize.py
+new file mode 100644
+index 0000000..1aa6a17
+--- /dev/null
++++ b/tests/test_lab_hidden_maxsize.py
+@@ -0,0 +1,70 @@
++import unittest
++
++import cachetools
++
++CLASSES = [
++    lambda n, **kw: cachetools.Cache(n, **kw),
++    lambda n, **kw: cachetools.FIFOCache(n, **kw),
++    lambda n, **kw: cachetools.LFUCache(n, **kw),
++    lambda n, **kw: cachetools.LRUCache(n, **kw),
++    lambda n, **kw: cachetools.RRCache(n, **kw),
++    lambda n, **kw: cachetools.TTLCache(n, ttl=60, **kw),
++    lambda n, **kw: cachetools.TLRUCache(n, ttu=lambda k, v, t: t + 60, **kw),
++]
++
++
++class MaxsizeSetterTest(unittest.TestCase):
++    def test_grow(self):
++        for make in CLASSES:
++            cache = make(2)
++            cache.update({1: 1, 2: 2})
++            cache.maxsize = 4
++            cache.update({3: 3, 4: 4})
++            self.assertEqual(4, cache.maxsize)
++            self.assertEqual({1, 2, 3, 4}, set(cache))
++
++    def test_shrink(self):
++        for make in CLASSES:
++            cache = make(4)
++            cache.update({1: 1, 2: 2, 3: 3, 4: 4})
++            cache.maxsize = 2
++            self.assertEqual(2, cache.maxsize)
++            self.assertEqual(2, len(cache))
++            self.assertEqual(2, cache.currsize)
++
++    def test_shrink_getsizeof(self):
++        for make in CLASSES:
++            cache = make(10, getsizeof=lambda v: v)
++            cache.update({"a": 3, "b": 3, "c": 3})
++            cache.maxsize = 5
++            self.assertLessEqual(cache.currsize, 5)
++            self.assertEqual(cache.currsize, sum(cache[k] for k in cache))
++
++    def test_shrink_order(self):
++        lru = cachetools.LRUCache(3)
++        lru.update({1: 1, 2: 2, 3: 3})
++        lru[1]
++        lru.maxsize = 2
++        self.assertEqual({1, 3}, set(lru))
++        fifo = cachetools.FIFOCache(3)
++        fifo.update({1: 1, 2: 2, 3: 3})
++        fifo[1]
++        fifo.maxsize = 1
++        self.assertEqual({3}, set(fifo))
++
++    def test_negative(self):
++        for make in CLASSES:
++            cache = make(2)
++            cache.update({1: 1, 2: 2})
++            with self.assertRaises(ValueError):
++                cache.maxsize = -1
++            self.assertEqual(2, cache.maxsize)
++            self.assertEqual(2, len(cache))
++
++    def test_zero(self):
++        cache = cachetools.LRUCache(2)
++        cache.update({1: 1, 2: 2})
++        cache.maxsize = 0
++        self.assertEqual(0, len(cache))
++        with self.assertRaises(ValueError):
++            cache[1] = 1

@@ -53,7 +53,28 @@ Before a task can enter a plan, it must pass admission:
 2. The empty patch fails at least one required verifier.
 3. The bad patch, if present, fails at least one required verifier.
 
-Admission stops a broken verifier from turning into a wrong training label.
+Admission stops a broken verifier from turning into a wrong training label. It counts only task verifiers, not the router's gates: a bad patch that does not apply, or that changes protected paths, is rejected because it does not test the verifiers.
+
+Conventions for authoring tasks:
+
+- Name hidden test files `test_lab_hidden_*` (or `lab_hidden_*.test.tsx`), so they do not collide with tests a worker adds. A worker patch that touches a hidden test path fails.
+- `test` tasks check the worker's tests with mutants. `hidden_tests.patch` adds `.lab/kill_mutants.sh` and `.lab/mutants/*.patch`. The `mutants` verifier applies each mutant, runs the worker's tests, and fails if any mutant survives. Protect the code under test, so the mutants still apply.
+- Build patches from exact edits with `git diff`. Do not write diffs by hand.
+
+### Seed corpus
+
+| Family | Task | Kind | Bad patch |
+| --- | --- | --- | --- |
+| `cachetools` | `typedkey-kwargs` | fix | adds key-name types instead of value types |
+| `cachetools` | `setitem-resize-size` | fix | clamps `currsize` at zero |
+| `cachetools` | `maxsize-setter` | build | sets the limit without evicting |
+| `cachetools` | `keys-tests` | test | weak tests; all 5 mutants survive |
+| `flaskr` | `delete-author-check` | fix | returns 404 instead of 403 |
+| `flaskr` | `posts-json-api` | build | `created` not in ISO 8601 |
+| `flaskr` | `user-queries-refactor` | refactor | adds helpers but keeps inline SQL |
+| `shopfront` | `duplicate-cart-lines` | fix | merges lines only for display |
+| `shopfront` | `category-filter` | build | hard-codes the category list |
+| `shopfront` | `cart-tests` | test | weak tests; 6 of 7 mutants survive |
 
 ## Plans and trials
 

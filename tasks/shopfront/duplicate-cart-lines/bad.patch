@@ -1,0 +1,33 @@
+diff --git a/src/components/CartView.tsx b/src/components/CartView.tsx
+index c4a4c3f..e51372d 100644
+--- a/src/components/CartView.tsx
++++ b/src/components/CartView.tsx
+@@ -1,5 +1,5 @@
+ import { useState } from "react";
+-import { type Cart, type DiscountCode, itemCount, parseDiscountCode, totals } from "../cart";
++import { type Cart, type CartLine, type DiscountCode, itemCount, parseDiscountCode, totals } from "../cart";
+ import { formatCents } from "../money";
+ import { findProduct, type Product } from "../products";
+ 
+@@ -16,6 +16,12 @@ export function CartView({ cart, products, code, onQuantity, onRemove, onCode }:
+   const [codeInput, setCodeInput] = useState("");
+   const [codeError, setCodeError] = useState<string | null>(null);
+   const sums = totals(cart, products, code);
++  const lines = cart.reduce<CartLine[]>((merged, line) => {
++    const same = merged.find((m) => m.productId === line.productId);
++    if (same) same.quantity += line.quantity;
++    else merged.push({ ...line });
++    return merged;
++  }, []);
+ 
+   function applyCode() {
+     const parsed = parseDiscountCode(codeInput);
+@@ -30,7 +36,7 @@ export function CartView({ cart, products, code, onQuantity, onRemove, onCode }:
+         <p>Your cart is empty.</p>
+       ) : (
+         <ul>
+-          {cart.map((line) => {
++          {lines.map((line) => {
+             const product = findProduct(products, line.productId);
+             if (!product) return null;
+             return (

@@ -1,0 +1,28 @@
+diff --git a/src/cachetools/__init__.py b/src/cachetools/__init__.py
+index c9eecb2..f6a6419 100644
+--- a/src/cachetools/__init__.py
++++ b/src/cachetools/__init__.py
+@@ -154,9 +154,22 @@ class Cache(collections.abc.MutableMapping):
+ 
+     @property
+     def maxsize(self):
+-        """The maximum size of the cache."""
++        """The maximum size of the cache.
++
++        Assigning a smaller size evicts items, in the order `popitem()` uses,
++        until the cache fits.
++
++        """
+         return self.__maxsize
+ 
++    @maxsize.setter
++    def maxsize(self, value):
++        if value < 0:
++            raise ValueError("maxsize must be non-negative")
++        self.__maxsize = value
++        while self.currsize > value:
++            self.popitem()
++
+     @property
+     def currsize(self):
+         """The current size of the cache."""

@@ -1,0 +1,25 @@
+diff --git a/examples/tutorial/flaskr/blog.py b/examples/tutorial/flaskr/blog.py
+index 11fffdbf..be0d92c4 100644
+--- a/examples/tutorial/flaskr/blog.py
++++ b/examples/tutorial/flaskr/blog.py
+@@ -118,7 +118,7 @@ def delete(id):
+     Ensures that the post exists and that the logged in user is the
+     author of the post.
+     """
+-    get_post(id, check_author=False)
++    get_post(id)
+     db = get_db()
+     db.execute("DELETE FROM post WHERE id = ?", (id,))
+     db.commit()
+diff --git a/examples/tutorial/tests/test_blog.py b/examples/tutorial/tests/test_blog.py
+index b7145910..55c769d8 100644
+--- a/examples/tutorial/tests/test_blog.py
++++ b/examples/tutorial/tests/test_blog.py
+@@ -32,6 +32,7 @@ def test_author_required(app, client, auth):
+     auth.login()
+     # current user can't modify other user's post
+     assert client.post("/1/update").status_code == 403
++    assert client.post("/1/delete").status_code == 403
+     # current user doesn't see edit link
+     assert b'href="/1/update"' not in client.get("/").data
+ 

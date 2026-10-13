@@ -1,0 +1,36 @@
+diff --git a/examples/tutorial/tests/test_lab_hidden_user_queries.py b/examples/tutorial/tests/test_lab_hidden_user_queries.py
+new file mode 100644
+index 00000000..077eb473
+--- /dev/null
++++ b/examples/tutorial/tests/test_lab_hidden_user_queries.py
+@@ -0,0 +1,30 @@
++import inspect
++
++import flaskr.auth
++from flaskr.db import get_user_by_id
++from flaskr.db import get_user_by_username
++
++
++def test_get_user_by_id(app):
++    with app.app_context():
++        assert get_user_by_id(1)["username"] == "test"
++        assert get_user_by_id(2)["username"] == "other"
++        assert get_user_by_id(99) is None
++
++
++def test_get_user_by_username(app):
++    with app.app_context():
++        assert get_user_by_username("other")["id"] == 2
++        assert get_user_by_username("nobody") is None
++
++
++def test_auth_has_no_user_reads():
++    source = inspect.getsource(flaskr.auth).lower()
++    assert "from user" not in source
++
++
++def test_login_still_works(client, auth):
++    assert auth.login().headers["Location"] == "/"
++    assert b"Log Out" in client.get("/").data
++    assert b"Incorrect password." in auth.login("test", "wrong").data
++    assert b"Incorrect username." in auth.login("nobody", "test").data

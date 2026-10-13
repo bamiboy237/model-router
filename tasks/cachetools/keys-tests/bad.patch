@@ -1,0 +1,20 @@
+diff --git a/tests/test_keys.py b/tests/test_keys.py
+new file mode 100644
+index 0000000..3123faf
+--- /dev/null
++++ b/tests/test_keys.py
+@@ -0,0 +1,14 @@
++import unittest
++
++import cachetools.keys
++
++
++class CacheKeysTest(unittest.TestCase):
++    def test_hashkey(self):
++        key = cachetools.keys.hashkey
++        self.assertEqual(key(1, 2, 3), key(1, 2, 3))
++        self.assertEqual(hash(key(1, 2, 3)), hash(key(1, 2, 3)))
++
++    def test_typedkey(self):
++        key = cachetools.keys.typedkey
++        self.assertEqual(key(1, 2, 3), key(1, 2, 3))

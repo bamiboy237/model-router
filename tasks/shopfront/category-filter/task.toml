@@ -1,0 +1,29 @@
+id = "category-filter"
+family = "shopfront"
+kind = "build"
+domain = "frontend"
+image = "model-router/node:1"
+fixture = "shopfront"
+overview = "shopfront is a small React and TypeScript storefront: a product list, a cart, and discount codes. Prices are integers in cents. Run the tests with: vitest run. Type-check with: tsc --noEmit -p ."
+instruction = """
+Add a category filter to the product list. Above the list, show a select labeled
+"Category" (its accessible name must be "Category"). Its options are "All", then each
+category of the products passed to the list, once each, in the order they first
+appear. "All" is selected at first and shows every product. Choosing a category shows
+only its products. The filter must not change the cart. Add tests.
+"""
+files = ["src/components/ProductList.tsx", "src/App.tsx", "src/App.test.tsx", "src/products.ts"]
+
+[[verifiers]]
+name = "vitest"
+version = "1"
+kind = "tests"
+command = ["vitest", "run"]
+timeout_s = 300
+
+[[verifiers]]
+name = "tsc"
+version = "1"
+kind = "typecheck"
+command = ["tsc", "--noEmit", "-p", "."]
+timeout_s = 300

@@ -111,7 +111,10 @@ def load_task(directory: Path, root: Path) -> LabTask | None:
     family = directory.parent.name
     if family == FIXTURES_DIR:
         return None
-    file = TaskFile.model_validate(tomllib.loads((directory / "task.toml").read_text()))
+    try:
+        file = TaskFile.model_validate(tomllib.loads((directory / "task.toml").read_text()))
+    except ValueError as error:
+        raise ValueError(f"{directory / 'task.toml'}: {error}") from error
     if (file.family, file.id) != (family, directory.name):
         raise ValueError(f"{directory} must hold task {family}/{directory.name}")
     return LabTask(

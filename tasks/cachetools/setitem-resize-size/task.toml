@@ -1,0 +1,26 @@
+id = "setitem-resize-size"
+family = "cachetools"
+kind = "fix"
+domain = "general"
+image = "model-router/python:1"
+overview = "cachetools is a Python library of memoizing collections and decorators."
+instruction = """
+The test suite fails. Caches created with `getsizeof` report the wrong `currsize` after
+a key is replaced with a larger value that does not fit: the replacement evicts other
+items, sometimes including the key itself, and the size accounting goes wrong. Fix the
+size accounting in the cache classes. Run the tests with
+`PYTHONPATH=src python -m pytest -q tests`.
+"""
+files = ["src/cachetools/__init__.py"]
+protected_paths = ["tests/**"]
+
+[upstream]
+url = "https://github.com/tkem/cachetools"
+sha = "3c082c654c2804b9354e4b62dbd2994f1aac464d"
+
+[[verifiers]]
+name = "pytest"
+version = "1"
+kind = "tests"
+command = ["sh", "-c", "PYTHONPATH=src python -m pytest -q tests"]
+timeout_s = 300

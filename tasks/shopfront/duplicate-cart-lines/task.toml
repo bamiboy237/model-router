@@ -1,0 +1,28 @@
+id = "duplicate-cart-lines"
+family = "shopfront"
+kind = "fix"
+domain = "frontend"
+image = "model-router/node:1"
+fixture = "shopfront"
+overview = "shopfront is a small React and TypeScript storefront: a product list, a cart, and discount codes. Prices are integers in cents. Run the tests with: vitest run. Type-check with: tsc --noEmit -p ."
+instruction = """
+Bug: clicking "Add to cart" twice for the same product shows two cart lines instead of
+one line with quantity 2. The subtotal is right, but the cart looks wrong, and changing
+the quantity of one line leaves the other. Each product must appear in the cart once,
+with its combined quantity. Fix the cause and add a test.
+"""
+files = ["src/cart.ts", "src/cart.test.ts", "src/components/CartView.tsx"]
+
+[[verifiers]]
+name = "vitest"
+version = "1"
+kind = "tests"
+command = ["vitest", "run"]
+timeout_s = 300
+
+[[verifiers]]
+name = "tsc"
+version = "1"
+kind = "typecheck"
+command = ["tsc", "--noEmit", "-p", "."]
+timeout_s = 300

@@ -1,0 +1,21 @@
+diff --git a/examples/tutorial/tests/test_lab_hidden_delete.py b/examples/tutorial/tests/test_lab_hidden_delete.py
+new file mode 100644
+index 00000000..73b1abcc
+--- /dev/null
++++ b/examples/tutorial/tests/test_lab_hidden_delete.py
+@@ -0,0 +1,15 @@
++from flaskr.db import get_db
++
++
++def test_other_user_cannot_delete(app, client, auth):
++    auth.login(username="other", password="other")
++    assert client.post("/1/delete").status_code == 403
++    with app.app_context():
++        assert get_db().execute("SELECT id FROM post WHERE id = 1").fetchone() is not None
++
++
++def test_author_can_delete(app, client, auth):
++    auth.login()
++    assert client.post("/1/delete").headers["Location"] == "/"
++    with app.app_context():
++        assert get_db().execute("SELECT id FROM post WHERE id = 1").fetchone() is None

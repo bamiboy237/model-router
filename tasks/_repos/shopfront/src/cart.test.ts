@@ -1,0 +1,67 @@
+import { addItem, discountFor, itemCount, parseDiscountCode, removeItem, setQuantity, totals } from "./cart";
+import { CATALOG } from "./products";
+
+describe("cart", () => {
+  it("adds a new product as a line", () => {
+    expect(addItem([], "bk-1")).toEqual([{ productId: "bk-1", quantity: 1 }]);
+  });
+
+  it("adds to the quantity of a product already in the cart", () => {
+    const cart = addItem(addItem([], "bk-1"), "bk-1", 2);
+    expect(cart).toEqual([{ productId: "bk-1", quantity: 3 }]);
+  });
+
+  it("removes only the named product", () => {
+    const cart = addItem(addItem(addItem([], "bk-1"), "kt-1"), "gd-1");
+    expect(removeItem(cart, "kt-1").map((l) => l.productId)).toEqual(["bk-1", "gd-1"]);
+  });
+
+  it("sets a quantity and removes the line at zero", () => {
+    const cart = addItem(addItem([], "bk-1"), "kt-1");
+    expect(setQuantity(cart, "bk-1", 4)).toEqual([
+      { productId: "bk-1", quantity: 4 },
+      { productId: "kt-1", quantity: 1 },
+    ]);
+    expect(setQuantity(cart, "bk-1", 0)).toEqual([{ productId: "kt-1", quantity: 1 }]);
+    expect(setQuantity(cart, "bk-1", -1)).toEqual([{ productId: "kt-1", quantity: 1 }]);
+  });
+
+  it("does not change the cart it is given", () => {
+    const cart = addItem([], "bk-1");
+    addItem(cart, "bk-1");
+    setQuantity(cart, "bk-1", 5);
+    expect(cart).toEqual([{ productId: "bk-1", quantity: 1 }]);
+  });
+
+  it("counts items across lines", () => {
+    expect(itemCount(addItem(addItem([], "bk-1", 2), "kt-1", 3))).toBe(5);
+  });
+});
+
+describe("discounts", () => {
+  it("parses codes without regard to case or surrounding spaces", () => {
+    expect(parseDiscountCode(" save10 ")).toBe("SAVE10");
+    expect(parseDiscountCode("FIVEOFF")).toBe("FIVEOFF");
+    expect(parseDiscountCode("FREE")).toBeNull();
+  });
+
+  it("takes 10% off with SAVE10, rounded to the nearest cent", () => {
+    expect(discountFor(1899, "SAVE10")).toBe(190);
+    expect(discountFor(1894, "SAVE10")).toBe(189);
+  });
+
+  it("takes $5 off with FIVEOFF only from $25", () => {
+    expect(discountFor(2499, "FIVEOFF")).toBe(0);
+    expect(discountFor(2500, "FIVEOFF")).toBe(500);
+  });
+
+  it("totals the cart with the discount", () => {
+    const cart = addItem(addItem([], "bk-1", 2), "kt-2");
+    expect(totals(cart, CATALOG, "SAVE10")).toEqual({
+      subtotalCents: 4697,
+      discountCents: 470,
+      totalCents: 4227,
+    });
+    expect(totals(cart, CATALOG).totalCents).toBe(4697);
+  });
+});

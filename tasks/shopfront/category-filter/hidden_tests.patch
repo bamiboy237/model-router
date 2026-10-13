@@ -1,0 +1,49 @@
+diff --git a/src/lab_hidden_category_filter.test.tsx b/src/lab_hidden_category_filter.test.tsx
+new file mode 100644
+index 0000000..9d05f80
+--- /dev/null
++++ b/src/lab_hidden_category_filter.test.tsx
+@@ -0,0 +1,43 @@
++import { fireEvent, render, screen, within } from "@testing-library/react";
++import { App } from "./App";
++import type { Product } from "./products";
++
++const PRODUCTS: Product[] = [
++  { id: "g1", name: "Trowel", category: "Garden", priceCents: 1200 },
++  { id: "k1", name: "Whisk", category: "Kitchen", priceCents: 700 },
++  { id: "g2", name: "Hose", category: "Garden", priceCents: 3100 },
++];
++
++function names(): string[] {
++  return screen.getAllByTestId("product").map((li) => li.querySelector("span")?.textContent ?? "");
++}
++
++describe("category filter", () => {
++  it("lists All, then each category once in order of first appearance", () => {
++    render(<App products={PRODUCTS} />);
++    const select = screen.getByRole("combobox", { name: "Category" }) as HTMLSelectElement;
++    expect([...select.options].map((o) => o.textContent)).toEqual(["All", "Garden", "Kitchen"]);
++    expect(select.value).toBe("All");
++    expect(names()).toEqual(["Trowel", "Whisk", "Hose"]);
++  });
++
++  it("shows only the chosen category, and All shows everything again", () => {
++    render(<App products={PRODUCTS} />);
++    const select = screen.getByRole("combobox", { name: "Category" });
++    fireEvent.change(select, { target: { value: "Garden" } });
++    expect(names()).toEqual(["Trowel", "Hose"]);
++    fireEvent.change(select, { target: { value: "All" } });
++    expect(names()).toEqual(["Trowel", "Whisk", "Hose"]);
++  });
++
++  it("keeps the cart when the filter changes", () => {
++    render(<App products={PRODUCTS} />);
++    fireEvent.click(screen.getByRole("button", { name: "Add Whisk to cart" }));
++    fireEvent.change(screen.getByRole("combobox", { name: "Category" }), {
++      target: { value: "Garden" },
++    });
++    const cart = screen.getByRole("region", { name: "Cart" });
++    expect(within(cart).getAllByTestId("cart-line")).toHaveLength(1);
++    expect(screen.getByTestId("subtotal").textContent).toBe("$7.00");
++  });
++});

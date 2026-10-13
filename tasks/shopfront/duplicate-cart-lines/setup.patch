@@ -1,0 +1,32 @@
+diff --git a/src/cart.test.ts b/src/cart.test.ts
+index 4c2fd99..894141b 100644
+--- a/src/cart.test.ts
++++ b/src/cart.test.ts
+@@ -6,11 +6,6 @@ describe("cart", () => {
+     expect(addItem([], "bk-1")).toEqual([{ productId: "bk-1", quantity: 1 }]);
+   });
+ 
+-  it("adds to the quantity of a product already in the cart", () => {
+-    const cart = addItem(addItem([], "bk-1"), "bk-1", 2);
+-    expect(cart).toEqual([{ productId: "bk-1", quantity: 3 }]);
+-  });
+-
+   it("removes only the named product", () => {
+     const cart = addItem(addItem(addItem([], "bk-1"), "kt-1"), "gd-1");
+     expect(removeItem(cart, "kt-1").map((l) => l.productId)).toEqual(["bk-1", "gd-1"]);
+diff --git a/src/cart.ts b/src/cart.ts
+index 2e2fba8..4503cd3 100644
+--- a/src/cart.ts
++++ b/src/cart.ts
+@@ -23,11 +23,6 @@ export type DiscountCode = keyof typeof DISCOUNT_CODES;
+ const FIVEOFF_MINIMUM_CENTS = 2500;
+ 
+ export function addItem(cart: Cart, productId: string, quantity = 1): Cart {
+-  if (cart.some((line) => line.productId === productId)) {
+-    return cart.map((line) =>
+-      line.productId === productId ? { ...line, quantity: line.quantity + quantity } : line,
+-    );
+-  }
+   return [...cart, { productId, quantity }];
+ }
+ 

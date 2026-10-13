@@ -1,0 +1,38 @@
+id = "cart-tests"
+family = "shopfront"
+kind = "test"
+domain = "frontend"
+image = "model-router/node:1"
+fixture = "shopfront"
+overview = "shopfront is a small React and TypeScript storefront: a product list, a cart, and discount codes. Prices are integers in cents. Run the tests with: vitest run. Type-check with: tsc --noEmit -p ."
+instruction = """
+src/cart.ts has no unit tests. Add src/cart.test.ts with Vitest (globals are enabled)
+covering addItem, removeItem, setQuantity, itemCount, parseDiscountCode, discountFor,
+and totals, including edge cases: repeated adds, quantities of zero or less, code
+parsing, rounding, and the FIVEOFF minimum. The tests must pass on the current code and
+should fail if any of these functions break. Do not change src/cart.ts or
+src/products.ts.
+"""
+files = ["src/cart.ts", "src/products.ts", "src/App.test.tsx"]
+protected_paths = ["src/cart.ts", "src/products.ts"]
+
+[[verifiers]]
+name = "vitest"
+version = "1"
+kind = "tests"
+command = ["vitest", "run", "src/cart.test.ts"]
+timeout_s = 300
+
+[[verifiers]]
+name = "mutants"
+version = "1"
+kind = "tests"
+command = ["sh", ".lab/kill_mutants.sh", "vitest run src/cart.test.ts"]
+timeout_s = 900
+
+[[verifiers]]
+name = "tsc"
+version = "1"
+kind = "typecheck"
+command = ["tsc", "--noEmit", "-p", "."]
+timeout_s = 300

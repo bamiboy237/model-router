@@ -163,6 +163,18 @@ Measure the router against fixed baselines:
 
 Track verified success, quality, total cost, p50 and p95 latency, escalation rate, context tokens, cache-hit rate, and regret against the best observed eligible model.
 
+## Trial lab
+
+`tasks/` holds the lab's task corpus. Each task comes from a real project: `cachetools`, Flask's `flaskr` tutorial, or the `shopfront` fixture in `tasks/_repos/`. Ticket `03b` describes the task format.
+
+Build the sandbox images, then check that every task's verifiers tell good work from bad:
+
+```sh
+docker build -t model-router/python:1 images/python
+docker build -t model-router/node:1 images/node
+uv run lab tasks check
+```
+
 ## Project documents
 
 - [`AGENTS.md`](AGENTS.md): instructions for agents working in this project.

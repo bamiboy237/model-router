@@ -1,0 +1,36 @@
+diff --git a/tests/test_lab_hidden_typed_kwargs.py b/tests/test_lab_hidden_typed_kwargs.py
+new file mode 100644
+index 0000000..d3c54be
+--- /dev/null
++++ b/tests/test_lab_hidden_typed_kwargs.py
+@@ -0,0 +1,30 @@
++import unittest
++
++import cachetools
++import cachetools.keys
++
++
++class TypedKwargsTest(unittest.TestCase):
++    def test_typedkey_kwargs(self, key=cachetools.keys.typedkey):
++        self.assertNotEqual(key(x=1), key(x=1.0))
++        self.assertNotEqual(key(1, x=1), key(1, x=1.0))
++        self.assertEqual(key(x=1, y="a"), key(y="a", x=1))
++        self.assertEqual(hash(key(x=1)), hash(key(x=1)))
++        self.assertEqual(key(1, 2), cachetools.keys.hashkey(1, 2) + (int, int))
++
++    def test_typedmethodkey_kwargs(self, key=cachetools.keys.typedmethodkey):
++        self.assertNotEqual(key("self", x=1), key("self", x=1.0))
++        self.assertEqual(key("a", x=1), key("b", x=1))
++
++    def test_cached_typed_kwargs(self):
++        calls = []
++
++        @cachetools.cached({}, key=cachetools.keys.typedkey)
++        def f(x):
++            calls.append(x)
++            return type(x).__name__
++
++        self.assertEqual(f(x=1), "int")
++        self.assertEqual(f(x=1.0), "float")
++        self.assertEqual(f(x=1), "int")
++        self.assertEqual(len(calls), 2)

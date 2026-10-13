@@ -1,0 +1,24 @@
+id = "delete-author-check"
+family = "flaskr"
+kind = "fix"
+domain = "backend"
+image = "model-router/python:1"
+overview = "The repository is Flask. The task is in examples/tutorial: flaskr, a small blog app with users, posts, and SQLite. Run its tests with: cd examples/tutorial && python -m pytest -q"
+instruction = """
+Security bug in flaskr (examples/tutorial): a logged-in user can delete another user's
+post by sending POST /<id>/delete. Editing is already restricted to the author. Only the
+author may delete a post. Anyone else must get 403 Forbidden, and the post must stay.
+Fix the cause and add a test for it.
+"""
+files = ["examples/tutorial/flaskr/blog.py", "examples/tutorial/tests/test_blog.py"]
+
+[upstream]
+url = "https://github.com/pallets/flask"
+sha = "22d924701a6ae2e4cd01e9a15bbaf3946094af65"
+
+[[verifiers]]
+name = "pytest"
+version = "1"
+kind = "tests"
+command = ["sh", "-c", "cd examples/tutorial && python -m pytest -q"]
+timeout_s = 300

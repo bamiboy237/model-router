@@ -1,0 +1,33 @@
+diff --git a/src/lab_hidden_cart_lines.test.tsx b/src/lab_hidden_cart_lines.test.tsx
+new file mode 100644
+index 0000000..be5bb8e
+--- /dev/null
++++ b/src/lab_hidden_cart_lines.test.tsx
+@@ -0,0 +1,27 @@
++import { fireEvent, render, screen, within } from "@testing-library/react";
++import { App } from "./App";
++import { addItem, itemCount } from "./cart";
++
++describe("repeated adds", () => {
++  it("keep one line per product", () => {
++    const cart = addItem(addItem(addItem([], "bk-1"), "kt-1"), "bk-1", 2);
++    expect(cart).toEqual([
++      { productId: "bk-1", quantity: 3 },
++      { productId: "kt-1", quantity: 1 },
++    ]);
++    expect(itemCount(cart)).toBe(4);
++  });
++
++  it("show one cart line with the combined quantity", () => {
++    render(<App />);
++    const add = screen.getByRole("button", { name: "Add Bench Scraper to cart" });
++    fireEvent.click(add);
++    fireEvent.click(add);
++    const cart = screen.getByRole("region", { name: "Cart" });
++    expect(within(cart).getAllByTestId("cart-line")).toHaveLength(1);
++    const quantity = screen.getByLabelText("Quantity of Bench Scraper") as HTMLInputElement;
++    expect(quantity.value).toBe("2");
++    fireEvent.change(quantity, { target: { value: "1" } });
++    expect(screen.getByTestId("subtotal").textContent).toBe("$8.99");
++  });
++});

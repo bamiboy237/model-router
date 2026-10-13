@@ -1,0 +1,58 @@
+diff --git a/examples/tutorial/flaskr/auth.py b/examples/tutorial/flaskr/auth.py
+index 34c03a20..502d91d2 100644
+--- a/examples/tutorial/flaskr/auth.py
++++ b/examples/tutorial/flaskr/auth.py
+@@ -12,6 +12,8 @@ from werkzeug.security import check_password_hash
+ from werkzeug.security import generate_password_hash
+ 
+ from .db import get_db
++from .db import get_user_by_id
++from .db import get_user_by_username
+ 
+ bp = Blueprint("auth", __name__, url_prefix="/auth")
+ 
+@@ -38,9 +40,7 @@ def load_logged_in_user():
+     if user_id is None:
+         g.user = None
+     else:
+-        g.user = (
+-            get_db().execute("SELECT * FROM user WHERE id = ?", (user_id,)).fetchone()
+-        )
++        g.user = get_user_by_id(user_id)
+ 
+ 
+ @bp.route("/register", methods=("GET", "POST"))
+@@ -89,9 +89,7 @@ def login():
+         password = request.form["password"]
+         db = get_db()
+         error = None
+-        user = db.execute(
+-            "SELECT * FROM user WHERE username = ?", (username,)
+-        ).fetchone()
++        user = get_user_by_username(username)
+ 
+         if user is None:
+             error = "Incorrect username."
+diff --git a/examples/tutorial/flaskr/db.py b/examples/tutorial/flaskr/db.py
+index dec22fde..fc560d1d 100644
+--- a/examples/tutorial/flaskr/db.py
++++ b/examples/tutorial/flaskr/db.py
+@@ -20,6 +20,18 @@ def get_db():
+     return g.db
+ 
+ 
++def get_user_by_id(user_id):
++    """Return the user with this id, or None."""
++    return get_db().execute("SELECT * FROM user WHERE id = ?", (user_id,)).fetchone()
++
++
++def get_user_by_username(username):
++    """Return the user with this username, or None."""
++    return (
++        get_db().execute("SELECT * FROM user WHERE username = ?", (username,)).fetchone()
++    )
++
++
+ def close_db(e=None):
+     """If this request connected to the database, close the
+     connection.

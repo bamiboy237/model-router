@@ -1,0 +1,143 @@
+diff --git a/.lab/kill_mutants.sh b/.lab/kill_mutants.sh
+new file mode 100644
+index 0000000..52c61a7
+--- /dev/null
++++ b/.lab/kill_mutants.sh
+@@ -0,0 +1,18 @@
++#!/bin/sh
++# Usage: kill_mutants.sh "<test command>"
++# Applies each mutant in .lab/mutants, runs the tests, and fails if any mutant survives.
++status=0
++for mutant in .lab/mutants/*.patch; do
++  if ! git apply "$mutant"; then
++    echo "mutant $mutant does not apply; was the code under test changed?"
++    exit 2
++  fi
++  if sh -c "$1" >/dev/null 2>&1; then
++    echo "survived: $(basename "$mutant")"
++    status=1
++  else
++    echo "killed: $(basename "$mutant")"
++  fi
++  git apply -R "$mutant"
++done
++exit $status
+diff --git a/.lab/mutants/add-duplicates.patch b/.lab/mutants/add-duplicates.patch
+new file mode 100644
+index 0000000..5fa665f
+--- /dev/null
++++ b/.lab/mutants/add-duplicates.patch
+@@ -0,0 +1,11 @@
++--- a/src/cart.ts
+++++ b/src/cart.ts
++@@ -23,7 +23,7 @@
++ const FIVEOFF_MINIMUM_CENTS = 2500;
++ 
++ export function addItem(cart: Cart, productId: string, quantity = 1): Cart {
++-  if (cart.some((line) => line.productId === productId)) {
+++  if (cart.length < 0) {
++     return cart.map((line) =>
++       line.productId === productId ? { ...line, quantity: line.quantity + quantity } : line,
++     );
+diff --git a/.lab/mutants/code-case-sensitive.patch b/.lab/mutants/code-case-sensitive.patch
+new file mode 100644
+index 0000000..032ad6e
+--- /dev/null
++++ b/.lab/mutants/code-case-sensitive.patch
+@@ -0,0 +1,11 @@
++--- a/src/cart.ts
+++++ b/src/cart.ts
++@@ -48,7 +48,7 @@
++ }
++ 
++ export function parseDiscountCode(input: string): DiscountCode | null {
++-  const code = input.trim().toUpperCase();
+++  const code = input.trim();
++   return code in DISCOUNT_CODES ? (code as DiscountCode) : null;
++ }
++ 
+diff --git a/.lab/mutants/count-lines.patch b/.lab/mutants/count-lines.patch
+new file mode 100644
+index 0000000..5862888
+--- /dev/null
++++ b/.lab/mutants/count-lines.patch
+@@ -0,0 +1,11 @@
++--- a/src/cart.ts
+++++ b/src/cart.ts
++@@ -44,7 +44,7 @@
++ }
++ 
++ export function itemCount(cart: Cart): number {
++-  return cart.reduce((sum, line) => sum + line.quantity, 0);
+++  return cart.length;
++ }
++ 
++ export function parseDiscountCode(input: string): DiscountCode | null {
+diff --git a/.lab/mutants/fiveoff-strict-minimum.patch b/.lab/mutants/fiveoff-strict-minimum.patch
+new file mode 100644
+index 0000000..2d96d8a
+--- /dev/null
++++ b/.lab/mutants/fiveoff-strict-minimum.patch
+@@ -0,0 +1,11 @@
++--- a/src/cart.ts
+++++ b/src/cart.ts
++@@ -57,7 +57,7 @@
++     case "SAVE10":
++       return Math.round(subtotalCents / 10);
++     case "FIVEOFF":
++-      return subtotalCents >= FIVEOFF_MINIMUM_CENTS ? 500 : 0;
+++      return subtotalCents > FIVEOFF_MINIMUM_CENTS ? 500 : 0;
++     default:
++       return 0;
++   }
+diff --git a/.lab/mutants/remove-keeps-only.patch b/.lab/mutants/remove-keeps-only.patch
+new file mode 100644
+index 0000000..ee286b7
+--- /dev/null
++++ b/.lab/mutants/remove-keeps-only.patch
+@@ -0,0 +1,11 @@
++--- a/src/cart.ts
+++++ b/src/cart.ts
++@@ -32,7 +32,7 @@
++ }
++ 
++ export function removeItem(cart: Cart, productId: string): Cart {
++-  return cart.filter((line) => line.productId !== productId);
+++  return cart.filter((line) => line.productId === productId);
++ }
++ 
++ /** Set a line's quantity. Zero or less removes the line. */
+diff --git a/.lab/mutants/save10-floor.patch b/.lab/mutants/save10-floor.patch
+new file mode 100644
+index 0000000..a6b7270
+--- /dev/null
++++ b/.lab/mutants/save10-floor.patch
+@@ -0,0 +1,11 @@
++--- a/src/cart.ts
+++++ b/src/cart.ts
++@@ -55,7 +55,7 @@
++ export function discountFor(subtotalCents: number, code: DiscountCode | null): number {
++   switch (code) {
++     case "SAVE10":
++-      return Math.round(subtotalCents / 10);
+++      return Math.floor(subtotalCents / 10);
++     case "FIVEOFF":
++       return subtotalCents >= FIVEOFF_MINIMUM_CENTS ? 500 : 0;
++     default:
+diff --git a/.lab/mutants/zero-quantity-kept.patch b/.lab/mutants/zero-quantity-kept.patch
+new file mode 100644
+index 0000000..45012bc
+--- /dev/null
++++ b/.lab/mutants/zero-quantity-kept.patch
+@@ -0,0 +1,11 @@
++--- a/src/cart.ts
+++++ b/src/cart.ts
++@@ -37,7 +37,7 @@
++ 
++ /** Set a line's quantity. Zero or less removes the line. */
++ export function setQuantity(cart: Cart, productId: string, quantity: number): Cart {
++-  if (quantity <= 0) {
+++  if (quantity < 0) {
++     return removeItem(cart, productId);
++   }
++   return cart.map((line) => (line.productId === productId ? { ...line, quantity } : line));

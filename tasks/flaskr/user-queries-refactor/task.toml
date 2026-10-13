@@ -1,0 +1,26 @@
+id = "user-queries-refactor"
+family = "flaskr"
+kind = "refactor"
+domain = "backend"
+image = "model-router/python:1"
+overview = "The repository is Flask. The task is in examples/tutorial: flaskr, a small blog app with users, posts, and SQLite. Run its tests with: cd examples/tutorial && python -m pytest -q"
+instruction = """
+In flaskr (examples/tutorial), flaskr/auth.py queries the user table inline in
+load_logged_in_user and login. Move these lookups into flaskr/db.py as
+get_user_by_id(user_id) and get_user_by_username(username). Each returns the user's
+sqlite3.Row, or None if there is no such user. Use them in auth.py, so auth.py no longer
+contains SQL that reads from the user table. Registration keeps its INSERT. Behavior
+must not change.
+"""
+files = ["examples/tutorial/flaskr/auth.py", "examples/tutorial/flaskr/db.py"]
+
+[upstream]
+url = "https://github.com/pallets/flask"
+sha = "22d924701a6ae2e4cd01e9a15bbaf3946094af65"
+
+[[verifiers]]
+name = "pytest"
+version = "1"
+kind = "tests"
+command = ["sh", "-c", "cd examples/tutorial && python -m pytest -q"]
+timeout_s = 300
