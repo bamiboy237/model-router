@@ -22,5 +22,7 @@ sha = "3c082c654c2804b9354e4b62dbd2994f1aac464d"
 name = "pytest"
 version = "1"
 kind = "tests"
-command = ["sh", "-c", "PYTHONPATH=src python -m pytest -q tests"]
+command = ["sh", "-c", "PYTHONPATH=src python -m pytest -q tests --junitxml=/tmp/lab-junit.xml"]
 timeout_s = 300
+junit_path = "/tmp/lab-junit.xml"
+expect_tests = ["tests/test_lab_hidden_typed_kwargs.py"]

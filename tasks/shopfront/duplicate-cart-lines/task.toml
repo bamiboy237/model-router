@@ -17,8 +17,10 @@ files = ["src/cart.ts", "src/cart.test.ts", "src/components/CartView.tsx"]
 name = "vitest"
 version = "1"
 kind = "tests"
-command = ["vitest", "run"]
+command = ["vitest", "run", "--reporter=default", "--reporter=junit", "--outputFile.junit=/tmp/lab-junit.xml"]
 timeout_s = 300
+junit_path = "/tmp/lab-junit.xml"
+expect_tests = ["src/lab_hidden_cart_lines.test.tsx"]
 
 [[verifiers]]
 name = "tsc"

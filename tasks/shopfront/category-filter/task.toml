@@ -18,8 +18,10 @@ files = ["src/components/ProductList.tsx", "src/App.tsx", "src/App.test.tsx", "s
 name = "vitest"
 version = "1"
 kind = "tests"
-command = ["vitest", "run"]
+command = ["vitest", "run", "--reporter=default", "--reporter=junit", "--outputFile.junit=/tmp/lab-junit.xml"]
 timeout_s = 300
+junit_path = "/tmp/lab-junit.xml"
+expect_tests = ["src/lab_hidden_category_filter.test.tsx"]
 
 [[verifiers]]
 name = "tsc"

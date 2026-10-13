@@ -60,6 +60,22 @@ Conventions for authoring tasks:
 - Name hidden test files `test_lab_hidden_*` (or `lab_hidden_*.test.tsx`), so they do not collide with tests a worker adds. A worker patch that touches a hidden test path fails.
 - `test` tasks check the worker's tests with mutants. `hidden_tests.patch` adds `.lab/kill_mutants.sh` and `.lab/mutants/*.patch`. The `mutants` verifier applies each mutant, runs the worker's tests, and fails if any mutant survives. Protect the code under test, so the mutants still apply.
 - Build patches from exact edits with `git diff`. Do not write diffs by hand.
+- Every verifier that runs hidden tests sets `junit_path` (outside the checkout) and lists the hidden test files in `expect_tests`. An exit code of 0 is not enough: the report must show every listed file's tests ran and passed, or the check fails with `tests_not_run`. Admission rejects a task whose hidden test files are not listed.
+
+### Grading defenses
+
+A worker can try to pass the checks without doing the task. Two defenses apply to every task:
+
+1. **Test setup files are protected.** `TEST_SETUP_PATHS` in `model_router.contracts` lists them: `conftest.py`, pytest and tox settings, `setup.cfg`, `pyproject.toml`, `sitecustomize.py`, `package.json`, Vite and Vitest config, and `tsconfig*.json`, in any directory. A patch that adds or changes one fails the protected-paths gate. The worker prompt lists them.
+2. **Reports prove the hidden tests ran.** See `expect_tests` above.
+
+Checked with cheat patches: a new `conftest.py` hook that marks failures as passed and a Vitest `exclude` are blocked by the gate. A test file that calls `os._exit(0)` passed before the report check and fails with it.
+
+Known limits:
+
+- Tasks cannot change `pyproject.toml` or `package.json`, so tasks that need a dependency or script change are out of scope.
+- A worker that knows a hidden test file's name could write a fake report. Hidden test names are not shown to workers, but the `test_lab_hidden_*` convention is predictable.
+- A test-writing worker can kill mutants with tests that compare the source text. Equivalent rewrites that the tests must not reject would catch this. Not built yet.
 
 ### Seed corpus
 

@@ -21,6 +21,7 @@ from pydantic_ai.usage import RunUsage, UsageLimits
 from pydantic_ai_harness import CodeMode
 
 from model_router.contracts import (
+    TEST_SETUP_PATHS,
     ContextPacket,
     ErrorCode,
     ModelRef,
@@ -154,6 +155,11 @@ def _prompt(task: TaskSpec, context: ContextPacket, note: str | None) -> str:
     if task.verifiers:
         lines.append("The result will be checked with:")
         lines += [f"- {' '.join(v.command)}" for v in task.verifiers]
+    setup = ", ".join(p for p in TEST_SETUP_PATHS if not p.startswith("*/"))
+    lines.append(f"Do not add or change test setup files, in any directory: {setup}.")
+    if task.protected_paths:
+        lines.append("Do not change these paths: " + ", ".join(task.protected_paths) + ".")
+    lines.append("A change to a protected file fails the check.")
     if note:
         lines += ["", "An earlier attempt failed. You start from a clean checkout.", note]
     lines.append("When you are done, reply with a one-paragraph summary of your change.")

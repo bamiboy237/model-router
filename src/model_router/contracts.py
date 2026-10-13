@@ -80,12 +80,18 @@ class CheckReason(StrEnum):
     ASSERTION_FAILED = "assertion_failed"
     PATCH_CONFLICT = "patch_conflict"
     PROTECTED_PATH = "protected_path"
+    TESTS_NOT_RUN = "tests_not_run"
     TIMEOUT = "timeout"
     UNAVAILABLE = "unavailable"
 
 
 _FAILING_REASONS = frozenset(
-    {CheckReason.ASSERTION_FAILED, CheckReason.PATCH_CONFLICT, CheckReason.PROTECTED_PATH}
+    {
+        CheckReason.ASSERTION_FAILED,
+        CheckReason.PATCH_CONFLICT,
+        CheckReason.PROTECTED_PATH,
+        CheckReason.TESTS_NOT_RUN,
+    }
 )
 
 # The router adds these gates to every verification. They can fail an attempt,
@@ -93,6 +99,23 @@ _FAILING_REASONS = frozenset(
 PATCH_APPLIES = "router.patch_applies"
 PROTECTED_PATHS = "router.protected_paths"
 ROUTER_CHECKS = (PATCH_APPLIES, PROTECTED_PATHS)
+
+# Files that decide which tests run and how they report. A patch that adds or changes one
+# could skip or fake every check, including hidden tests, so every task protects them.
+TEST_SETUP_PATHS = (
+    "conftest.py", "*/conftest.py",
+    "pytest.ini", "*/pytest.ini",
+    "tox.ini", "*/tox.ini",
+    "setup.cfg", "*/setup.cfg",
+    "pyproject.toml", "*/pyproject.toml",
+    "sitecustomize.py", "*/sitecustomize.py",
+    "usercustomize.py", "*/usercustomize.py",
+    "package.json", "*/package.json",
+    "vite.config.*", "*/vite.config.*",
+    "vitest.config.*", "*/vitest.config.*",
+    "vitest.workspace.*", "*/vitest.workspace.*",
+    "tsconfig*.json", "*/tsconfig*.json",
+)  # fmt: skip
 
 
 def sha256_text(text: str) -> str:
@@ -117,11 +140,25 @@ class VerifierSpec(Contract):
     command: tuple[Id, ...] = Field(min_length=1)
     timeout_s: float = Field(gt=0)
     required: bool = True
+    junit_path: Id | None = Field(
+        default=None,
+        description="Absolute path of a JUnit XML report the command writes, outside the "
+        "checkout. Needed when expect_tests is set.",
+    )
+    expect_tests: tuple[Id, ...] = Field(
+        default=(),
+        description="Test files that must appear in the report with every test passed. "
+        "An exit code of 0 is not enough: the tests must be shown to have run.",
+    )
 
     @model_validator(mode="after")
-    def _not_reserved(self) -> Self:
+    def _valid(self) -> Self:
         if self.name.startswith("router."):
             raise ValueError("verifier names starting with 'router.' are reserved")
+        if self.expect_tests and self.junit_path is None:
+            raise ValueError("expect_tests needs a junit_path")
+        if self.junit_path is not None and not self.junit_path.startswith("/"):
+            raise ValueError("junit_path must be absolute, so the report is outside the checkout")
         return self
 
 

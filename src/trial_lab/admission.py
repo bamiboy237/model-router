@@ -3,6 +3,8 @@
 1. The reference patch passes every required verifier.
 2. The empty patch fails at least one required task verifier.
 3. The bad patch, if present, applies cleanly and fails at least one required task verifier.
+4. Every hidden test file is in a required verifier's expect_tests, so its report must show
+   those tests ran.
 
 Without these checks, a broken verifier turns into a wrong training label.
 """
@@ -13,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from model_router.contracts import PATCH_APPLIES, PROTECTED_PATHS, ROUTER_CHECKS, ResultStatus
-from model_router.verification import Verification, verify
+from model_router.verification import Verification, patch_paths, verify
 from model_router.workers.sandbox import SandboxConfig, SandboxError
 from trial_lab.repos import RepoError
 from trial_lab.tasks import LabTask
@@ -47,6 +49,14 @@ async def admit(task: LabTask) -> Admission:
     missing = [r.path for r in spec.context_refs if not (Path(spec.repo) / r.path).exists()]
     if missing:
         return Admission(task.task_id, ("files not in snapshot: " + ", ".join(missing),))
+    expected = {path for v in spec.verifiers if v.required for path in v.expect_tests}
+    unproven = [p for p in hidden_test_files(spec.hidden_tests) if p not in expected]
+    if unproven:
+        return Admission(
+            task.task_id,
+            ("hidden test files no required verifier lists in expect_tests: "
+             + ", ".join(unproven),),
+        )
     config = SandboxConfig(image=task.file.image)
     problems: list[str] = []
     patches = {"reference": task.reference_patch, "empty": ""}
@@ -62,6 +72,11 @@ async def admit(task: LabTask) -> Admission:
         if problem:
             problems.append(problem)
     return Admission(task.task_id, tuple(problems))
+
+
+def hidden_test_files(hidden_tests: str) -> list[str]:
+    """Hidden test files a report must cover. Files under .lab/ are check tooling, not tests."""
+    return [p for p in patch_paths(hidden_tests) if not p.startswith(".lab/")]
 
 
 def _check(name: str, verification: Verification) -> str | None:

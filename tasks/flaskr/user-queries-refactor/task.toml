@@ -22,5 +22,7 @@ sha = "22d924701a6ae2e4cd01e9a15bbaf3946094af65"
 name = "pytest"
 version = "1"
 kind = "tests"
-command = ["sh", "-c", "cd examples/tutorial && python -m pytest -q"]
+command = ["sh", "-c", "cd examples/tutorial && python -m pytest -q --junitxml=/tmp/lab-junit.xml"]
 timeout_s = 300
+junit_path = "/tmp/lab-junit.xml"
+expect_tests = ["examples/tutorial/tests/test_lab_hidden_user_queries.py"]

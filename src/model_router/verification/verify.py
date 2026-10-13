@@ -2,10 +2,12 @@ import shlex
 import time
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
+from xml.etree import ElementTree
 
 from model_router.contracts import (
     PATCH_APPLIES,
     PROTECTED_PATHS,
+    TEST_SETUP_PATHS,
     CheckReason,
     CheckResult,
     ResultStatus,
@@ -24,8 +26,10 @@ from model_router.workers.sandbox import (
     open_sandbox,
 )
 
-ROUTER_CHECK_VERSION = "1"
+ROUTER_CHECK_VERSION = "2"
 NOTE_OUTPUT_CHARS = 2_000
+REPORT_MAX_CHARS = 5_000_000
+_NOT_PASSED = frozenset({"failure", "error", "skipped"})
 # sh exits 126 when it cannot run the command and 127 when it cannot find it.
 _UNAVAILABLE_EXIT_CODES = frozenset({126, 127})
 
@@ -44,7 +48,11 @@ async def verify(task: TaskSpec, patch: str, config: SandboxConfig | None = None
         checks = [_gate(PATCH_APPLIES, applied, CheckReason.PATCH_CONFLICT, apply_ms)]
         notes = [] if applied else ["The patch does not apply cleanly to the base commit."]
         if applied:
-            protected = (*task.protected_paths, *patch_paths(task.hidden_tests))
+            protected = (
+                *TEST_SETUP_PATHS,
+                *task.protected_paths,
+                *patch_paths(task.hidden_tests),
+            )
             touched = [path for path in changed if _protected(path, protected)]
             checks.append(_gate(PROTECTED_PATHS, not touched, CheckReason.PROTECTED_PATH, 0))
             if touched:
@@ -52,11 +60,10 @@ async def verify(task: TaskSpec, patch: str, config: SandboxConfig | None = None
             else:
                 await _apply_hidden_tests(sandbox, task.hidden_tests)
                 for spec in task.verifiers:
-                    run = await sandbox.run(shlex.join(spec.command), spec.timeout_s)
-                    check = _check(spec, run)
+                    check, note = await _run_verifier(sandbox, spec)
                     checks.append(check)
-                    if check.passed is not True:
-                        notes.append(_note(spec, check, run))
+                    if note:
+                        notes.append(note)
     required = required_checks(task.verifiers)
     status = verification_status(checks, required)
     result = VerificationResult(required=required, checks=tuple(checks), status=status)
@@ -86,6 +93,55 @@ async def _apply_hidden_tests(sandbox: DockerSandbox, hidden_tests: str) -> None
     if result.exit_code != 0:
         # The worker cannot touch these paths, so a failure here is a broken task.
         raise SandboxError(f"hidden tests do not apply: {result.output.strip()}")
+
+
+async def _run_verifier(sandbox: DockerSandbox, spec: VerifierSpec) -> tuple[CheckResult, str]:
+    command = shlex.join(spec.command)
+    if spec.junit_path is not None:
+        # A stale report must not stand in for this run's.
+        command = f"rm -f -- {shlex.quote(spec.junit_path)} && {command}"
+    run = await sandbox.run(command, spec.timeout_s)
+    check = _check(spec, run)
+    if check.passed is not True:
+        return check, _note(spec, check, run)
+    if not spec.expect_tests:
+        return check, ""
+    assert spec.junit_path is not None
+    report = await sandbox.read(spec.junit_path)
+    problems = unproven_tests(report, spec.expect_tests)
+    if not problems:
+        return check, ""
+    check = check.model_copy(update={"passed": False, "reason": CheckReason.TESTS_NOT_RUN})
+    return check, f"Check {spec.name} exited 0, but its report does not show the tests ran:\n" + (
+        "\n".join(problems)
+    )
+
+
+def unproven_tests(report: str | None, expected: tuple[str, ...]) -> list[str]:
+    """Problems with a JUnit report that should show every test in `expected` run and passed.
+
+    A test case belongs to a file when the file's name, up to its first dot, appears in the
+    case's file or classname attribute. pytest writes `tests.test_x`; Vitest writes the path.
+    """
+    if report is None:
+        return ["the report was not written"]
+    if len(report) > REPORT_MAX_CHARS:
+        return [f"the report is over {REPORT_MAX_CHARS} characters"]
+    try:
+        root = ElementTree.fromstring(report)
+    except ElementTree.ParseError:
+        return ["the report is not valid XML"]
+    cases = list(root.iter("testcase"))
+    problems = []
+    for path in expected:
+        stem = path.rsplit("/", 1)[-1].split(".", 1)[0]
+        mine = [c for c in cases if stem in f"{c.get('file', '')} {c.get('classname', '')}"]
+        bad = [c for c in mine if any(e.tag in _NOT_PASSED for e in c)]
+        if not mine:
+            problems.append(f"{path}: no tests ran")
+        elif bad:
+            problems.append(f"{path}: {len(bad)} of {len(mine)} tests did not pass")
+    return problems
 
 
 def patch_paths(patch: str) -> list[str]:
