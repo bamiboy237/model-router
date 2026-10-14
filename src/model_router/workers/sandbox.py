@@ -1,9 +1,9 @@
 import asyncio
 import os
+import re
 import shlex
 import shutil
 import tempfile
-import re
 import time
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
