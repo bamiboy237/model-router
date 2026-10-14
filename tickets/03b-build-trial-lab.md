@@ -179,7 +179,7 @@ The coding role now caps cost, not tokens: `max_cost_usd = 5` in `config/workers
 
 Known limits:
 
-- The budget reservation is an estimate. One trial can cost more than its reservation, so a run can end slightly over `max_usd`. The role's token limit bounds how far.
+- The budget reservation is an estimate. One trial can cost more than its reservation, so a run can end slightly over `max_usd`. The role's `max_cost_usd`, or its token limit when it has no cost cap, bounds how far.
 - `SIGKILL` on the runner leaves its sandbox containers running. They carry the label `model-router.sandbox=1` and exit after `SandboxConfig.lifetime_s` (2 hours).
 - `lab run` does not read `.env`. Load keys into the environment first.
 

@@ -48,16 +48,12 @@ Build the deterministic path before training a router.
 5. Create benchmark tasks for exploration, implementation, tests, debugging, refactoring, and architecture.
 6. Strip `simulate` to its trial-lab core (ticket `03a`) and move it into `src/trial_lab/`. Then build the lab (ticket `03b`): agents work on real tasks in Docker, and every trial becomes a training record. The lab also holds the benchmark and the fixed baselines.
 
-The first router uses configuration, not machine learning:
+The first router uses configuration, not machine learning. `config/router.toml` gives each model a guessed success rate per task kind, most specific key first:
 
-```yaml
-models:
-  exploration_model:
-    strengths: [repository_exploration, summarization]
-  coding_model:
-    strengths: [implementation, tests, refactoring]
-  reasoning_model:
-    strengths: [architecture, ambiguous_debugging]
+```toml
+[models."openai:gpt-6-luna"]
+context_limit = 1_050_000
+success = { "*" = 0.6, explore = 0.85, docs = 0.8, fix = 0.65 }
 ```
 
 These are hypotheses. Evaluation data must be able to confirm or replace them.

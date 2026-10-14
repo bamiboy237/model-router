@@ -28,6 +28,41 @@ The stages are:
 - Make every decision explainable through a decision receipt with features, candidates, scores, constraints, and evidence.
 - Use provider gateways and model APIs through adapters. Keep gateway, billing, and provider health concerns outside this project.
 
+## Engineering standards
+
+These rules keep the code small and the evidence trustworthy.
+
+### Validate at boundaries
+
+A boundary is where outside data enters: files in `config/`, `plans/`, and `tasks/`; rows read back from `runs/`; a `DelegationRequest`; provider responses; and output from host or sandbox commands. Parse each one into a `Contract` where it enters.
+
+Inside the boundary, trust the types. A constructed `Contract` already meets its validators, so callers use it as is. When mypy needs a narrower type, reshape the type (a property that returns the narrowed value, or a union) instead of adding an `assert`.
+
+Check the exit code of every command whose output the code uses. A failed command's output is error text, not data.
+
+### One home for each rule
+
+- Each invariant lives in one validator. Each shared format lives in one helper in `contracts.py`, for example the `provider:model_id` key, the git SHA pattern, micro-USD conversion, and canonical JSON hashing.
+- Before writing a helper, search `model_router` for one. Logic that both packages need lives in `model_router`, because `trial_lab` imports it and not the reverse.
+- A stored value derived from other stored values, such as `status`, `final_status`, or `StopReceipt` totals, is computed by one function. Validators confirm it; callers pass the result through.
+- An ID is built once, by the code that owns it, and passed down.
+
+### Grow surface with callers
+
+Add a field, enum value, config key, export, or class in the same change as the code that reads it. When a ticket needs a piece before its caller exists, name the ticket in the piece's docstring. `__init__.py` exports what other packages import. Delete what nothing reads.
+
+### Errors keep their traceback
+
+Catch an exception only to turn it into a recorded outcome, as `classify_error` does. Every other exception propagates with its traceback. To add context, raise a new error `from` the original. Provider errors describe the provider, so they never count as model evidence.
+
+### Records name their inputs
+
+Every stored record names the versions that produced it: schema, policy, price table, and plan hash. A contract change that breaks reading existing rows in `runs/` bumps `SCHEMA_VERSION`. Runs already on disk stay as written.
+
+### Docs move with code
+
+A behavior change updates the ticket's Decisions or Limitations section in the same change, and the README when it shows the changed behavior. Comments explain why: a hidden constraint, an invariant, or a workaround, in the style of `contracts.py` and `workers/sandbox.py`.
+
 ## Trial lab package
 
 `src/trial_lab/` runs trial plans and writes trial records. It shares this project's `pyproject.toml`.
