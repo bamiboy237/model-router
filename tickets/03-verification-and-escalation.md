@@ -65,7 +65,7 @@ Run `ruff`, `mypy --strict`, and the schema check. Then run a throwaway script w
     4. Otherwise, passing checks count as one success.
   - `partial` counts as half a success. Provider errors cast no vote.
   - The estimate blends votes with the configured prior, worth 10 attempts.
-- **Schemas.** `schemas/feedback_event.v1.json` is checked in next to the trial record schema. Schema version 1 is not frozen until ticket `03b` writes data.
+- **Schemas.** `schemas/feedback_event.v2.json` is checked in next to the trial record schema. All contracts share one `SCHEMA_VERSION`, so the version 2 bump in ticket `03b` renamed it without changing its fields.
 
 ## Limitations
 

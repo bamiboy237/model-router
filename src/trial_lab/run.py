@@ -34,6 +34,7 @@ from model_router.routing import DelegationRequest, RouterConfig, load_router_co
 from model_router.trial_record import LabInfo, TrialRecord, trial_records
 from model_router.verification import verify
 from model_router.workers import (
+    HARNESS_VERSION,
     PriceTable,
     SandboxConfig,
     UnpricedModelError,
@@ -291,6 +292,7 @@ async def run_trial(
         sandbox_config=sandbox,
         model=model,
         thinking=arm.thinking,
+        code_mode=arm.code_mode,
     )
     artifacts = store.artifacts(trial.trial_id)
     (artifacts / "transcript.json").write_text(result.transcript)
@@ -341,6 +343,8 @@ async def run_trial(
         plan_hash=prepared.plan.plan_hash,
         arm_id=arm.arm_id,
         thinking=arm.thinking,
+        code_mode=arm.code_mode,
+        harness_version=HARNESS_VERSION,
         repetition=trial.repetition,
         task_family=task.task.file.family,
         artifacts_path=str(artifacts.relative_to(store.root)),

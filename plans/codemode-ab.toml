@@ -1,0 +1,20 @@
+# CodeMode A/B: the two arms differ only in code_mode. The tasks each start from three or
+# more files, so a worker has lookups worth batching. Ticket 03b holds the decision rule.
+plan_id = "codemode-ab"
+seed = 20261015
+tasks = ["posts-json-api", "user-queries-refactor", "category-filter"]
+repetitions = 3
+max_usd = 10
+concurrency = 2
+prices = "2026-09-30-r4"
+
+[[arms]]
+arm_id = "flash-direct"
+model = { provider = "google", model_id = "gemini-3.8-flash" }
+thinking = "medium"
+
+[[arms]]
+arm_id = "flash-codemode"
+model = { provider = "google", model_id = "gemini-3.8-flash" }
+thinking = "medium"
+code_mode = true

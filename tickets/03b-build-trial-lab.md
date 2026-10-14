@@ -94,13 +94,13 @@ Known limits:
 
 ## Plans and trials
 
-An arm is `(model, context_strategy, thinking)`, as defined in `trial_lab.plan.Arm`. `thinking` is the reasoning effort (`minimal` to `xhigh`) or unset for the model's default. The only context strategy is `task_files`: the worker is pointed at the files the task lists.
+An arm is `(model, context_strategy, thinking, code_mode)`, as defined in `trial_lab.plan.Arm`. `thinking` is the reasoning effort (`minimal` to `xhigh`) or unset for the model's default. The only context strategy is `task_files`: the worker is pointed at the files the task lists. `code_mode` lets the worker batch lookups in `run_code` (ticket `01`); it defaults to off.
 
 A plan file in `plans/` declares the task selector (`tasks`, `families`, or neither for every task), the arms, the repetitions, the seed, `assignment`, the budget (`max_usd`), the concurrency limit, and the price table version (`prices`). `PlanFile.resolve` turns it into a `Plan`, and `build_trials` turns that into trials. The plan hash covers the resolved task IDs, arms, repetitions, seed, and assignment, but not the budget or concurrency, so raising the budget does not change trial IDs.
 
 - Each trial is one attempt by one arm on one task, run with `model_router`'s worker and `verify()`. The lab does not retry or escalate. Retries are a routing decision, not part of the data.
 - Each trial appends one JSONL row built with `model_router.trial_records(trace, lab)` from a single-attempt trace. The attempt's decision has policy `lab.all_arms`; its task features come from the router.
-- `lab.router_receipt` holds the rule-based router's receipt for the task: the model it would have picked. `lab.arm_id` and `lab.thinking` name the arm.
+- `lab.router_receipt` holds the rule-based router's receipt for the task: the model it would have picked. `lab.arm_id`, `lab.thinking`, and `lab.code_mode` name the arm. `lab.harness_version` names the worker harness, so reports never pool trials from different harnesses.
 - Worker transcripts, patches, verifier notes, and worker errors go in `runs/<run_id>/artifacts/<trial_id>/`, not in the row.
 - A provider error (rate limit, outage, network) says nothing about the model. The trial goes to `errors.jsonl`, not `trials.jsonl`, and stays pending. Three in a row stop the run.
 - A setup error, such as a rejected API key or a Docker failure, stops the run. In-flight trials finish first.
@@ -176,6 +176,20 @@ Live smoke (`plans/smoke.toml`, run `smoke-1`): `typedkey-kwargs` with Gemini 3.
 - The worker ran `git log`, `git reflog`, and `git tag` to look for the fix. The snapshot showed one commit.
 
 The coding role now caps cost, not tokens: `max_cost_usd = 5` in `config/workers.toml`, priced with the price table after each response. Run `smoke-2` with the cap passed every check: 38 requests, 1,578,185 input tokens (1,354,129 cached), 45,249 output tokens, $0.44, and 417 s. Its recorded tokens equal the transcript's sum.
+
+Smoke runs 1 and 2 used harness version 1 with thinking high. Their rows use schema version 1, which the code no longer reads.
+
+## Harness version 2
+
+The `smoke-2` transcript showed where the 417 seconds went: one tool call per turn across 38 turns, about 15 turns on git history, tool versions, and benchmarks, and more work after the tests had passed. Harness version 2 (ticket `01`) rebuilds the worker on Pydantic AI Harness `Coder` with a `run_checks()` stop signal and turn-budget reminders. The plans now use thinking medium.
+
+Still to run, on a machine with Docker and a Gemini key:
+
+1. `lab run plans/smoke.toml`. Compare turns, time, and cost with `smoke-2` (38 turns, 417 s, $0.44).
+2. `lab run plans/codemode-ab.toml`: 3 tasks × 2 arms × 3 repetitions, about $3.50. The arms differ only in `code_mode`. The tasks each start from three or more files.
+3. Decide the Code Mode default from the A/B run. Turn it on for a role only if median turns drop by at least 25% and the hidden-test pass rate does not fall. Otherwise leave it off. Record the result here. Nine trials per arm is early evidence; repeat when more models join the plans.
+
+The A/B tasks are not yet split into training and holdout families. A harness setting is not routing configuration, but if any of the three tasks lands in the holdout split, note that in the export.
 
 Known limits:
 

@@ -24,6 +24,7 @@ class Arm(BaseModel):
     # task_files: the worker is pointed at the files the task lists.
     context_strategy: Literal["task_files"] = "task_files"
     thinking: ThinkingEffort | None = None
+    code_mode: bool = False
 
 
 class Plan(BaseModel):

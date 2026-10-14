@@ -23,7 +23,6 @@ class WorkerRole(Contract):
         default=None, gt=0, description="Priced with the price table after each response."
     )
     time_budget_s: float = Field(gt=0)
-    code_mode: bool = True
 
     @model_validator(mode="after")
     def _bounded(self) -> Self:

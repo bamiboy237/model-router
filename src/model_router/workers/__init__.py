@@ -7,9 +7,10 @@ from model_router.workers.config import (
     load_roles,
 )
 from model_router.workers.sandbox import DockerSandbox, SandboxConfig, SandboxError, open_sandbox
-from model_router.workers.worker import build_model, classify_error, run_worker
+from model_router.workers.worker import HARNESS_VERSION, build_model, classify_error, run_worker
 
 __all__ = [
+    "HARNESS_VERSION",
     "DockerSandbox",
     "ModelPrice",
     "PriceTable",

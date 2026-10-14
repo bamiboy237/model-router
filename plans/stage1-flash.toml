@@ -1,4 +1,4 @@
-# Stage 1, first live round: every seed task, Gemini 3.8 Flash with high thinking.
+# Stage 1, first live round: every seed task, Gemini 3.8 Flash with medium thinking.
 plan_id = "stage1-flash"
 seed = 20261001
 repetitions = 3
@@ -7,6 +7,6 @@ concurrency = 4
 prices = "2026-09-30-r4"
 
 [[arms]]
-arm_id = "flash-high"
+arm_id = "flash-medium"
 model = { provider = "google", model_id = "gemini-3.8-flash" }
-thinking = "high"
+thinking = "medium"

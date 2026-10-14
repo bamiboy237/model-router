@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -931,7 +931,7 @@ dev = [
 requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "pydantic", specifier = ">=2.10" },
-    { name = "pydantic-ai-harness", extras = ["codemode"], specifier = ">=0.52.0" },
+    { name = "pydantic-ai-harness", extras = ["codemode"], specifier = "==0.52.0" },
     { name = "pydantic-ai-slim", extras = ["anthropic", "google", "openai"], specifier = ">=2.52.0" },
 ]
 
