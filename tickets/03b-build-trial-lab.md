@@ -224,9 +224,18 @@ Live Docker smoke results on `typedkey-kwargs`, medium thinking, Code Mode off:
 | 6 | Gemini 3.8 Flash | 20 | 192.2 | 0.200226 | `review-pr2-v6-gemini-20261014` |
 | 6 | Muse Spark 1.3 | 4 | 41.1 | 0.042359 | `review-pr2-v6-meta-20261014` |
 
-Every smoke passed hidden tests, and recorded token usage matched its transcript. These are single trials per configuration, not evidence of a general speed or cost improvement. Gemini still made one tool call per response. Version 5 made no `read_file` calls on the listed files; version 6 reread 40 lines of `tests/test_keys.py`. Both Gemini runs first called `run_checks()` before editing, when visible tests already passed. The 13 and 19 responses after that first pass include the actual fix, so that count does not measure work after task completion. Meta version 6 issued two independent reads in one response.
+Every smoke passed hidden tests, and recorded token usage matched its transcript. These are single trials per configuration, not evidence of a general speed or cost improvement. Gemini made one tool call per response in both smokes. Version 5 made no `read_file` calls on the listed files; version 6 reread 40 lines of `tests/test_keys.py`. Both Gemini runs first called `run_checks()` before editing, when visible tests already passed. The 13 and 19 responses after that first pass include the actual fix, so that count does not measure work after task completion. Meta version 6 issued two independent reads in one response.
 
-The version 6 Code Mode comparison is running as `review-pr2-v6-codemode-ab-20261014`: three tasks, two arms, three repetitions, concurrency two. Apply the version 2 decision rule when all trials finish. Code Mode remains off by default.
+The version 6 Code Mode comparison completed as `review-pr2-v6-codemode-ab-20261014`: three tasks, two arms, three repetitions, concurrency two, plan hash `7dea4a7322b1`. All 18 unique trials passed hidden tests. Recorded token usage matched every transcript, and none of the workers delegated.
+
+| Arm | Passed | Median requests | Median total seconds | Completed-trial cost USD |
+| --- | ---: | ---: | ---: | ---: |
+| Direct tools | 9/9 | 21 | 135.2 | 1.952629 |
+| Code Mode | 9/9 | 23 | 229.2 | 2.115963 |
+
+Code Mode stays off: it increased median requests by 9.5%, so it fails the required reduction of at least 25%. Per-task median requests (direct, Code Mode) were category filter (10, 23), posts API (40, 34), and user-query refactor (21, 17). Direct Gemini trials did batch native tools, with up to four calls in a response. This is early evidence from nine trials per arm on one model.
+
+Five Gemini HTTP 503 high-demand errors were recorded separately and retried across two resumes. No trials remain pending. Those errors cost $0.017964; total run cost was $4.086556. All four review smoke runs plus this comparison cost $4.497692, priced from recorded usage with table `2026-10-14-r1`.
 
 Known limits:
 
