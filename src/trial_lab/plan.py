@@ -1,7 +1,6 @@
 import random
 import tomllib
 from collections.abc import Sequence
-from decimal import Decimal
 from pathlib import Path
 from typing import Literal, Self
 from uuid import UUID, uuid5
@@ -28,7 +27,7 @@ class Arm(BaseModel):
 
 
 class Plan(BaseModel):
-    """What a run does. Its hash is in every trial ID, so budget and concurrency stay out."""
+    """What a run does. Its hash is in every trial ID, so concurrency stays out."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -65,7 +64,6 @@ class PlanFile(BaseModel):
     tasks: tuple[str, ...] = ()
     families: tuple[str, ...] = ()
     arms: tuple[Arm, ...]
-    max_usd: Decimal = Field(gt=0)
     concurrency: int = Field(default=2, ge=1)
     prices: str = Field(min_length=1, description="The price table version the plan expects.")
 
@@ -94,7 +92,7 @@ class PlanFile(BaseModel):
 
 def load_plan(path: Path) -> PlanFile:
     try:
-        return PlanFile.model_validate(tomllib.loads(path.read_text(), parse_float=Decimal))
+        return PlanFile.model_validate(tomllib.loads(path.read_text()))
     except ValueError as error:
         raise ValueError(f"{path}: {error}") from error
 

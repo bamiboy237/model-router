@@ -4,9 +4,8 @@ plan_id = "codemode-ab"
 seed = 20261015
 tasks = ["posts-json-api", "user-queries-refactor", "category-filter"]
 repetitions = 3
-max_usd = 10
 concurrency = 2
-prices = "2026-09-30-r4"
+prices = "2026-10-14-r1"
 
 [[arms]]
 arm_id = "flash-direct"

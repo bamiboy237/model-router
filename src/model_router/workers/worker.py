@@ -1,12 +1,12 @@
-import asyncio
+import os
 import re
 import shlex
 import time
 from dataclasses import dataclass
 
 import httpx
-from pydantic_ai import Agent, RunContext
-from pydantic_ai.capabilities import AbstractCapability
+from pydantic_ai import Agent, AgentRunResult, RunContext
+from pydantic_ai.capabilities import AbstractCapability, WrapRunHandler
 from pydantic_ai.exceptions import (
     ContentFilterError,
     ModelAPIError,
@@ -18,13 +18,13 @@ from pydantic_ai.messages import ModelRequest, ToolReturnPart
 from pydantic_ai.models import Model
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.models.openai import OpenAIResponsesModel
+from pydantic_ai.profiles.openai import OpenAIModelProfile
 from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.toolsets import FunctionToolset
-from pydantic_ai.usage import RunUsage, UsageLimits
+from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import CodeMode, Coder, SystemReminders
-from pydantic_ai_harness.system_reminders import Reminder
 
 from model_router.contracts import (
     TEST_SETUP_PATHS,
@@ -45,7 +45,7 @@ from model_router.workers.sandbox import (
 
 # Bump on any change to the worker's tools, prompt, or reminders, and on any
 # pydantic-ai-harness upgrade, so trials from different harnesses are never pooled.
-HARNESS_VERSION = "2"
+HARNESS_VERSION = "4"
 # Lookups worth batching in one run_code call. Edits, checks, and shell commands stay
 # direct tool calls, so every change to the checkout is its own visible step.
 CODE_MODE_TOOLS = ("read_file", "list_files", "grep")
@@ -65,11 +65,40 @@ class WorkerDeps:
     task: TaskSpec
 
 
+class _UnlimitedRequests(AbstractCapability[WorkerDeps]):
+    async def wrap_run(
+        self, ctx: RunContext[WorkerDeps], *, handler: WrapRunHandler
+    ) -> AgentRunResult[str]:
+        # Every fresh run, including a delegate, otherwise gets the library's 50-request cap.
+        if ctx.usage_limits is not None:
+            ctx.usage_limits.request_limit = None
+        return await handler()
+
+
 def build_model(ref: ModelRef) -> Model:
     if ref.provider == "openai":
         return OpenAIResponsesModel(ref.model_id, provider=OpenAIProvider())
     if ref.provider == "google":
         return GoogleModel(ref.model_id, provider=GoogleProvider())
+    if ref.provider == "meta":
+        return OpenAIResponsesModel(
+            ref.model_id,
+            provider=OpenAIProvider(
+                base_url="https://api.meta.ai/v1",
+                api_key=os.environ["MODEL_API_KEY"],
+            ),
+            # Meta requires encrypted reasoning replay and commentary phases in tool loops.
+            profile=OpenAIModelProfile(
+                supports_thinking=True,
+                thinking_always_enabled=True,
+                thinking_enabled_by_default=True,
+                openai_supports_reasoning=True,
+                openai_supports_reasoning_effort_none=False,
+                openai_supports_encrypted_reasoning_content=True,
+                openai_supports_phase=True,
+                openai_responses_requires_store_false=True,
+            ),
+        )
     raise ValueError(f"unsupported provider {ref.provider!r}")
 
 
@@ -124,8 +153,6 @@ async def run_worker(
         thinking=thinking,
         code_mode=code_mode,
     )
-    limits = UsageLimits(request_limit=role.max_turns, total_tokens_limit=role.max_total_tokens)
-    max_cost = int(role.max_cost_usd * 1_000_000) if role.max_cost_usd is not None else None
     usage = RunUsage()
     transcript = b""
     patch: str | None = None
@@ -136,25 +163,17 @@ async def run_worker(
         started = time.monotonic()
         prompt = _prompt(task, context, note)
         try:
-            async with asyncio.timeout(role.time_budget_s):
-                async with agent.iter(
-                    prompt,
-                    deps=WorkerDeps(sandbox, task),
-                    usage_limits=limits,
-                    workspace=DockerWorkspace(sandbox),
-                ) as run:
-                    try:
-                        async for _ in run:
-                            if max_cost is not None:
-                                spent = prices.cost_micro_usd(model_ref, _tokens(run.usage))
-                                if spent > max_cost:
-                                    raise UsageLimitExceeded(
-                                        f"cost ${spent / 1e6:.4f} exceeded the role's "
-                                        f"max_cost_usd of ${role.max_cost_usd}"
-                                    )
-                    finally:
-                        usage = run.usage
-                        transcript = run.all_messages_json()
+            async with agent.iter(
+                prompt,
+                deps=WorkerDeps(sandbox, task),
+                workspace=DockerWorkspace(sandbox),
+            ) as run:
+                try:
+                    async for _ in run:
+                        pass
+                finally:
+                    usage = run.usage
+                    transcript = run.all_messages_json()
         except Exception as exc:
             error_code = classify_error(exc)
             if error_code is None:
@@ -186,22 +205,16 @@ def build_agent(
     thinking: ThinkingEffort | None = None,
     code_mode: bool = False,
 ) -> Agent[WorkerDeps, str]:
-    """The worker agent: Coder's tools and context management, plus run_checks and reminders.
-
-    Thinking is set on the agent, not the run, because delegated runs of the agent
-    inherit only what is bound to it.
-    """
+    """The worker agent: Coder's tools and context management, plus run_checks and reminders."""
     instructions = role.instructions
     if code_mode:
         instructions += (
             "\nWhen you need several files or searches, fetch them together in one run_code call."
         )
     capabilities: list[AbstractCapability[WorkerDeps]] = [
+        _UnlimitedRequests(),
         Coder(instructions=instructions),
-        SystemReminders(
-            reminders=_budget_reminders(role.max_turns),
-            dynamic_reminders=[_checks_passed_reminder],
-        ),
+        SystemReminders(dynamic_reminders=[_checks_passed_reminder]),
     ]
     if code_mode:
         capabilities.append(CodeMode(tools=list(CODE_MODE_TOOLS)))
@@ -254,23 +267,6 @@ def _checks_passed_reminder(ctx: RunContext[WorkerDeps]) -> str | None:
                 "task needs more.\n</system-reminder>"
             )
     return None
-
-
-def _budget_reminders(max_turns: int) -> list[Reminder[WorkerDeps]]:
-    reminders: list[Reminder[WorkerDeps]] = []
-    for share, advice in (
-        (50, "Focus on the change the task needs."),
-        (80, f"Finish the change, call {CHECKS_TOOL}(), and reply with your summary."),
-    ):
-        turn = max_turns * share // 100
-        if turn >= 1:
-            reminders.append(Reminder(
-                f"This is turn {turn} of {max_turns}. {advice}",
-                first_after=turn,
-                interval=max_turns,
-                max_fires=1,
-            ))
-    return reminders
 
 
 def _tokens(usage: RunUsage) -> TokenUsage:

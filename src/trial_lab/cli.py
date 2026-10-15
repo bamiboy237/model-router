@@ -85,7 +85,7 @@ def _print_plan(prepared: PreparedPlan) -> None:
         )
     print(
         f"estimated cost ${prepared.estimate_micro_usd / 1e6:.2f} from the router's usage "
-        f"guesses; budget ${file.max_usd}; prices {file.prices}; concurrency {file.concurrency}"
+        f"guesses; prices {file.prices}; concurrency {file.concurrency}"
     )
 
 

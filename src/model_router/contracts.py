@@ -474,7 +474,9 @@ class ExecutionTrace(Contract):
     schema_version: Literal[2] = SCHEMA_VERSION
     trace_id: Id
     task: TaskSummary
-    budget: ExecutionBudget
+    budget: ExecutionBudget | None = Field(
+        description="The retry budget, or None for an uncapped lab trial."
+    )
     attempts: tuple[Attempt, ...]
     stop: StopReceipt
     final_status: ResultStatus
