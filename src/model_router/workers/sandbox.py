@@ -1,9 +1,9 @@
 import asyncio
 import os
+import re
 import shlex
 import shutil
 import tempfile
-import re
 import time
 from collections.abc import AsyncIterator, Mapping
 from contextlib import asynccontextmanager
@@ -38,7 +38,7 @@ class SandboxConfig(Contract):
     cpus: float = Field(default=2, gt=0)
     pids_limit: int = Field(default=512, ge=1)
     # The container exits on its own after this, so a killed host process cannot leave it
-    # running forever. It must outlast the longest worker time budget plus verification.
+    # running forever. Worker loops have no separate time cap.
     lifetime_s: int = Field(default=7200, ge=1)
 
 

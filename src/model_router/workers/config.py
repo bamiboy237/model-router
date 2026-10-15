@@ -2,9 +2,8 @@ import math
 import tomllib
 from decimal import Decimal
 from pathlib import Path
-from typing import Self
 
-from pydantic import Field, model_validator
+from pydantic import Field
 
 from model_router.contracts import Contract, Id, ModelRef, TokenUsage
 
@@ -12,24 +11,6 @@ from model_router.contracts import Contract, Id, ModelRef, TokenUsage
 class WorkerRole(Contract):
     name: Id
     instructions: Id
-    max_turns: int = Field(ge=1)
-    max_total_tokens: int | None = Field(
-        default=None,
-        ge=1,
-        description="Counts every request's full input, cached tokens included, so long "
-        "sessions reach it even when they cost little.",
-    )
-    max_cost_usd: Decimal | None = Field(
-        default=None, gt=0, description="Priced with the price table after each response."
-    )
-    time_budget_s: float = Field(gt=0)
-    code_mode: bool = True
-
-    @model_validator(mode="after")
-    def _bounded(self) -> Self:
-        if self.max_total_tokens is None and self.max_cost_usd is None:
-            raise ValueError("a role needs max_total_tokens, max_cost_usd, or both")
-        return self
 
 
 class ModelPrice(Contract):

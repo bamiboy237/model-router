@@ -3,11 +3,10 @@
 plan_id = "smoke"
 seed = 1
 tasks = ["typedkey-kwargs"]
-max_usd = 2
 concurrency = 1
-prices = "2026-09-30-r4"
+prices = "2026-10-14-r1"
 
 [[arms]]
-arm_id = "flash-high"
+arm_id = "flash-medium"
 model = { provider = "google", model_id = "gemini-3.8-flash" }
-thinking = "high"
+thinking = "medium"

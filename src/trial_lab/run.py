@@ -8,7 +8,7 @@ says nothing about the model, so it is logged to errors.jsonl and the trial stay
 import asyncio
 import time
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -21,7 +21,6 @@ from model_router.contracts import (
     Candidate,
     ContextPacket,
     DecisionReceipt,
-    ExecutionBudget,
     ExecutionTrace,
     ResultStatus,
     StopReason,
@@ -34,6 +33,7 @@ from model_router.routing import DelegationRequest, RouterConfig, load_router_co
 from model_router.trial_record import LabInfo, TrialRecord, trial_records
 from model_router.verification import verify
 from model_router.workers import (
+    HARNESS_VERSION,
     PriceTable,
     SandboxConfig,
     UnpricedModelError,
@@ -164,9 +164,7 @@ class RunSummary:
     skipped: int = 0
     stopped: str | None = None
     failure: BaseException | None = None
-    _reserved: int = 0
     _errors_in_a_row: int = 0
-    _observed: dict[str, int] = field(default_factory=dict)
 
 
 async def run_plan(
@@ -177,35 +175,32 @@ async def run_plan(
     models: Mapping[str, Model] | None = None,
     report: Report = print,
 ) -> RunSummary:
-    """Run every trial not yet in the store. Pass models, keyed by arm id, to script workers.
+    """Run every pending trial without a spend cap.
 
-    Before it starts a trial, the runner reserves the trial's expected cost: the larger of the
-    router's guess and the highest cost the arm has recorded. It starts no trial whose
-    reservation would take spend past max_usd.
+    Pass models, keyed by arm id, to script workers.
     """
     plan = prepared.plan
-    workers = {
-        arm.arm_id: (models or {}).get(arm.arm_id) or build_model(arm.model) for arm in plan.arms
-    }
     records = store.records()
     if any(r.lab is None or r.lab.plan_hash != plan.plan_hash for r in records):
         raise PlanError(f"{store.trials} holds trials from a different plan")
+    if any(r.lab is not None and r.lab.harness_version != HARNESS_VERSION for r in records):
+        raise PlanError(
+            f"{store.trials} holds trials from a different worker harness; start a new run"
+        )
+    workers = {
+        arm.arm_id: (models or {}).get(arm.arm_id) or build_model(arm.model) for arm in plan.arms
+    }
     done = {r.lab.trial_id for r in records if r.lab is not None}
     summary = RunSummary(
         skipped=len(done),
         spent_micro_usd=sum(r.cost_micro_usd for r in records) + store.error_cost_micro_usd(),
     )
-    for record in records:
-        if record.lab is not None:
-            arm_id = record.lab.arm_id
-            summary._observed[arm_id] = max(summary._observed.get(arm_id, 0), record.cost_micro_usd)
-    limit = int(prepared.file.max_usd * 1_000_000)
     pending = [t for t in prepared.trials if t.trial_id not in done]
     total = len(prepared.trials)
     slots = asyncio.Semaphore(prepared.file.concurrency)
     running: list[asyncio.Task[None]] = []
 
-    async def one(trial: Trial, reserved: int) -> None:
+    async def one(trial: Trial) -> None:
         try:
             record = await run_trial(prepared, trial, store, run_id, workers[trial.arm_id])
         except Exception as error:
@@ -213,15 +208,12 @@ async def run_plan(
             summary.stopped = f"trial {trial.trial_id} failed: {type(error).__name__}: {error}"
             return
         finally:
-            summary._reserved -= reserved
             slots.release()
         line = f"[{trial.ordinal}/{total}] {trial.task_id} {trial.arm_id} r{trial.repetition}"
         if isinstance(record, TrialRecord):
             summary.recorded += 1
             summary._errors_in_a_row = 0
             summary.spent_micro_usd += record.cost_micro_usd
-            seen = summary._observed.get(trial.arm_id, 0)
-            summary._observed[trial.arm_id] = max(seen, record.cost_micro_usd)
             failed = [c.verifier_name for c in record.checks if c.passed is False]
             detail = record.error_code or ", ".join(failed)
             report(f"{line}: {record.status}{f' ({detail})' if detail else ''}, "
@@ -235,33 +227,12 @@ async def run_plan(
             if summary._errors_in_a_row >= MAX_PROVIDER_ERRORS_IN_A_ROW:
                 summary.stopped = f"{summary._errors_in_a_row} provider errors in a row"
 
-    def over(reserve: int) -> bool:
-        return summary.spent_micro_usd + summary._reserved + reserve > limit
-
     for trial in pending:
         await slots.acquire()
-        guess = prepared.estimates[trial.task_id, trial.arm_id]
-        reserve = max(guess, summary._observed.get(trial.arm_id, 0))
-        # Finished trials free their reservations, so wait for them before giving up.
-        while over(reserve) and not summary.stopped:
-            busy = [t for t in running if not t.done()]
-            if not busy:
-                break
-            await asyncio.wait(busy, return_when=asyncio.FIRST_COMPLETED)
-            reserve = max(guess, summary._observed.get(trial.arm_id, 0))
         if summary.stopped:
             slots.release()
             break
-        if over(reserve):
-            slots.release()
-            summary.stopped = (
-                f"budget: ${summary.spent_micro_usd / 1e6:.2f} spent and "
-                f"${summary._reserved / 1e6:.2f} reserved; the next trial may cost "
-                f"${reserve / 1e6:.2f} of max ${prepared.file.max_usd}"
-            )
-            break
-        summary._reserved += reserve
-        running.append(asyncio.create_task(one(trial, reserve)))
+        running.append(asyncio.create_task(one(trial)))
     await asyncio.gather(*running)
     return summary
 
@@ -291,6 +262,7 @@ async def run_trial(
         sandbox_config=sandbox,
         model=model,
         thinking=arm.thinking,
+        code_mode=arm.code_mode,
     )
     artifacts = store.artifacts(trial.trial_id)
     (artifacts / "transcript.json").write_text(result.transcript)
@@ -324,13 +296,7 @@ async def run_trial(
     trace = ExecutionTrace(
         trace_id=f"trial-{trial.trial_id}",
         task=task.spec.summary(),
-        budget=ExecutionBudget(
-            max_attempts=1,
-            max_cost_micro_usd=_max_cost(task.role, arm, settings),
-            max_active_ms=int(
-                (task.role.time_budget_s + sum(v.timeout_s for v in task.spec.verifiers)) * 1000
-            ),
-        ),
+        budget=None,
         attempts=(attempt,),
         stop=_stop(status, result.cost_micro_usd, active_ms),
         final_status=status,
@@ -341,6 +307,8 @@ async def run_trial(
         plan_hash=prepared.plan.plan_hash,
         arm_id=arm.arm_id,
         thinking=arm.thinking,
+        code_mode=arm.code_mode,
+        harness_version=HARNESS_VERSION,
         repetition=trial.repetition,
         task_family=task.task.file.family,
         artifacts_path=str(artifacts.relative_to(store.root)),
@@ -370,15 +338,6 @@ def _assignment(
         role=task.receipt.role,
         rationale="stage 1 assigns every arm to every task",
     )
-
-
-def _max_cost(role: WorkerRole, arm: Arm, settings: Settings) -> int:
-    if role.max_cost_usd is not None:
-        return int(role.max_cost_usd * 1_000_000)
-    assert role.max_total_tokens is not None
-    # All output is the worst case under a token limit.
-    tokens = TokenUsage(output_tokens=role.max_total_tokens)
-    return settings.prices.cost_micro_usd(arm.model, tokens)
 
 
 def _stop(status: ResultStatus, cost_micro_usd: int, active_ms: int) -> StopReceipt:

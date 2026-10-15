@@ -1,35 +1,22 @@
-# A role sets instructions and limits. The router picks the model for each job;
+# A role sets instructions. The router picks the model for each job;
 # see config/router.toml.
 
 [roles.exploration]
 instructions = """
 You explore a repository to answer a question about it. Read and search; do not edit files
 unless the task asks for a change. Be brief."""
-max_turns = 30
-max_total_tokens = 400_000
-time_budget_s = 300
 
 [roles.coding]
 instructions = """
 You are a careful software engineer. Make the smallest change that completes the task.
 Run the task's checks before you finish, and fix any failures your change causes."""
-max_turns = 60
-# A cost cap, not a token cap: token caps count cached input again on every turn.
-max_cost_usd = 5
-time_budget_s = 900
 
 [roles.reasoning]
 instructions = """
 You solve hard problems that need careful reasoning: reviews, designs, subtle bugs, and
 failures other attempts could not fix. Explain your reasoning in your final summary."""
-max_turns = 40
-max_total_tokens = 1_000_000
-time_budget_s = 1200
 
 [roles.writing]
 instructions = """
 You write clear technical documentation. Read the code you describe, keep claims accurate,
 and edit only documentation files unless the task says otherwise."""
-max_turns = 30
-max_total_tokens = 600_000
-time_budget_s = 600

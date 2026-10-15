@@ -43,6 +43,11 @@ class LabInfo(Contract):
     plan_hash: Sha256
     arm_id: Id
     thinking: Id | None = Field(description="Reasoning effort the arm set; None is the default.")
+    code_mode: bool = Field(description="Whether the worker could batch lookups in run_code.")
+    harness_version: Id = Field(
+        description="The worker harness that ran the trial. Trials from different harness "
+        "versions measure different things and must not be pooled."
+    )
     repetition: NonNegativeInt
     task_family: Id
     artifacts_path: Id
@@ -53,7 +58,7 @@ class LabInfo(Contract):
 
 
 class TrialRecord(Contract):
-    schema_version: Literal[1] = SCHEMA_VERSION
+    schema_version: Literal[2] = SCHEMA_VERSION
     trace_id: Id
     task_id: Id
     kind: Kind

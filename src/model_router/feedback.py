@@ -49,7 +49,7 @@ class FeedbackSource(StrEnum):
 
 
 class FeedbackEvent(Contract):
-    schema_version: Literal[1] = SCHEMA_VERSION
+    schema_version: Literal[2] = SCHEMA_VERSION
     event_id: Id
     trace_id: Id
     attempt_id: Id

@@ -79,10 +79,13 @@ def _print_plan(prepared: PreparedPlan) -> None:
         cost = sum(prepared.estimates[t.task_id, t.arm_id] for t in prepared.trials
                    if t.arm_id == arm.arm_id)
         model = f"{arm.model.provider}:{arm.model.model_id}"
-        print(f"  {arm.arm_id}  {model}  thinking={arm.thinking or 'default'}  ${cost / 1e6:.2f}")
+        print(
+            f"  {arm.arm_id}  {model}  thinking={arm.thinking or 'default'}  "
+            f"code_mode={'on' if arm.code_mode else 'off'}  ${cost / 1e6:.2f}"
+        )
     print(
         f"estimated cost ${prepared.estimate_micro_usd / 1e6:.2f} from the router's usage "
-        f"guesses; budget ${file.max_usd}; prices {file.prices}; concurrency {file.concurrency}"
+        f"guesses; prices {file.prices}; concurrency {file.concurrency}"
     )
 
 

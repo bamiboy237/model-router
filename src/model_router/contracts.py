@@ -5,7 +5,7 @@ from typing import Annotated, Literal, Self
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-SCHEMA_VERSION: Literal[1] = 1
+SCHEMA_VERSION: Literal[2] = 2
 
 Id = Annotated[str, Field(min_length=1)]
 NonNegativeInt = Annotated[int, Field(ge=0)]
@@ -169,7 +169,7 @@ def required_checks(verifiers: Iterable[VerifierSpec]) -> tuple[str, ...]:
 class TaskSpec(Contract):
     """A task as the worker sees it. Holds user content, so it is never stored in a trace."""
 
-    schema_version: Literal[1] = SCHEMA_VERSION
+    schema_version: Literal[2] = SCHEMA_VERSION
     task_id: Id
     kind: Kind
     domain: Domain | None = None
@@ -471,10 +471,12 @@ class StopReceipt(Contract):
 
 
 class ExecutionTrace(Contract):
-    schema_version: Literal[1] = SCHEMA_VERSION
+    schema_version: Literal[2] = SCHEMA_VERSION
     trace_id: Id
     task: TaskSummary
-    budget: ExecutionBudget
+    budget: ExecutionBudget | None = Field(
+        description="The retry budget, or None for an uncapped lab trial."
+    )
     attempts: tuple[Attempt, ...]
     stop: StopReceipt
     final_status: ResultStatus
