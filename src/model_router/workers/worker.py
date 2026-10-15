@@ -19,6 +19,7 @@ from pydantic_ai.models import Model
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.models.openai import OpenAIResponsesModel
 from pydantic_ai.profiles.openai import OpenAIModelProfile
+from pydantic_ai.providers.deepseek import DeepSeekProvider
 from pydantic_ai.providers.google import GoogleProvider
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.settings import ModelSettings, ThinkingEffort
@@ -80,6 +81,18 @@ def build_model(ref: ModelRef) -> Model:
         return OpenAIResponsesModel(ref.model_id, provider=OpenAIProvider())
     if ref.provider == "google":
         return GoogleModel(ref.model_id, provider=GoogleProvider())
+    if ref.provider == "deepseek":
+        return OpenAIResponsesModel(
+            ref.model_id,
+            provider=DeepSeekProvider(),
+            # The installed SDK recognizes deepseek-v4-* but not the V4.1 Flash ID.
+            profile=OpenAIModelProfile(
+                supports_thinking=True,
+                thinking_enabled_by_default=True,
+                supports_forced_tool_choice_with_thinking=False,
+                context_window=1_048_576,
+            ),
+        )
     if ref.provider == "meta":
         return OpenAIResponsesModel(
             ref.model_id,

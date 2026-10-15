@@ -185,6 +185,8 @@ Workers can use sub-agents and have no request, token, cost, or wall-time caps. 
 
 To try Muse Spark 1.3, set `MODEL_API_KEY` and run `uv run lab run plans/smoke-meta.toml`. [Meta integration notes](docs/meta-model-api.md) include the official API and pricing sources.
 
+To try DeepSeek V4.1 Flash, set `DEEPSEEK_API_KEY` and run `uv run lab run plans/smoke-deepseek.toml`. [DeepSeek integration notes](docs/deepseek-model-api.md) describe the model ID, reasoning replay, and pricing limits.
+
 ## Project documents
 
 - [`AGENTS.md`](AGENTS.md): instructions for agents working in this project.
