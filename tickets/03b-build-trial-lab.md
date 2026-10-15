@@ -208,6 +208,15 @@ A throwaway Docker run completed two trials with estimates above the old plan li
 
 Live uncapped Gemini smoke (`review-pr1-uncapped-v4-20261014`) passed hidden tests with 16 requests, 140.7 seconds, and $0.1488. Its usage matched the transcript.
 
+## Harness version 5
+
+Version 5 changes the harness and the prompt (ticket `01`). The worker is now built from `Coder`'s capabilities rather than `Coder` itself. That drops `Coder`'s built-in instructions, which ask the model to seek approval, run extra lint and type checks, and poll long-running work. It also replaces the detached `shell` tool with `run_command`, which waits under the sandbox's per-command deadline. The worker reads the listed files before the first request and puts them in the task message. New instructions tell every model that no one will answer questions, to make independent calls in the same response, to read code with the file tools, and not to repeat calls or delegate small work. Gemini gets one extra line saying parallel function calls run at the same time. Limits are unchanged from version 4.
+
+Still to run, on a machine with Docker and a Gemini key:
+
+1. `lab run plans/smoke.toml`. Compare requests, time, and cost with version 4 (16 requests, 140.7 s, $0.1488). From the transcript, count tool calls per response, rereads of the listed files, and requests after the first passing `run_checks()`.
+2. If no Gemini response holds more than one tool call, run `lab run plans/codemode-ab.toml` on version 5 and apply the Code Mode rule from version 2. Otherwise Code Mode stays off and the A/B run stays on hold.
+
 Known limits:
 
 - Cost estimates are informational. Workers and lab plans have no spend cap.

@@ -6,10 +6,11 @@ instructions = """
 You explore a repository to answer a question about it. Read and search; do not edit files
 unless the task asks for a change. Be brief."""
 
+# The task prompt carries the coding workflow (smallest change, run_checks, stop), so it is
+# stated once there.
 [roles.coding]
 instructions = """
-You are a careful software engineer. Make the smallest change that completes the task.
-Run the task's checks before you finish, and fix any failures your change causes."""
+You are a careful software engineer."""
 
 [roles.reasoning]
 instructions = """

@@ -24,7 +24,22 @@ from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import RunUsage
-from pydantic_ai_harness import CodeMode, Coder, SystemReminders
+from pydantic_ai.workspaces import WorkspaceBackend
+from pydantic_ai_harness import (
+    ClearToolResults,
+    CodeMode,
+    FileSystem,
+    RepoContext,
+    Shell,
+    SubAgents,
+    SystemReminders,
+    ToolOutputLimits,
+    WarnNearLimits,
+)
+from pydantic_ai_harness.coder import FILE_TOOL_NAMES
+from pydantic_ai_harness.filesystem import FileSystemToolset
+from pydantic_ai_harness.repair_tool_arguments import RepairToolArguments
+from pydantic_ai_harness.tool_output_limits import Band, Truncate
 
 from model_router.contracts import (
     TEST_SETUP_PATHS,
@@ -45,13 +60,42 @@ from model_router.workers.sandbox import (
 
 # Bump on any change to the worker's tools, prompt, or reminders, and on any
 # pydantic-ai-harness upgrade, so trials from different harnesses are never pooled.
-HARNESS_VERSION = "4"
+HARNESS_VERSION = "5"
 # Lookups worth batching in one run_code call. Edits, checks, and shell commands stay
 # direct tool calls, so every change to the checkout is its own visible step.
 CODE_MODE_TOOLS = ("read_file", "list_files", "grep")
+# Replaces Coder's built-in instructions, which a caller can only add to. Those ask the model
+# to seek approval, run extra lint and type checks, and poll long-running work, and each
+# costs turns in a headless trial. Some models are also trained to stop and ask, and a
+# question ends the trial because no one answers.
+_WORKER_INSTRUCTIONS = """\
+You work alone in a sandboxed checkout of a repository. Read the code, make the change, and \
+verify it with the tools.
+No one will answer questions during this task. Do not ask for input or confirmation. Make \
+reasonable assumptions, finish the task, and name the assumptions in your summary.
+Follow the repository's instructions and conventions. Fix causes, not symptoms. Leave only the \
+requested change, and delete any scratch files you create.
+When tool calls do not depend on each other, make them in the same response.
+Read code with read_file, grep, and list_files, not with cat, grep, or ls in run_command. Read \
+whole files, and grep large ones.
+Do not repeat a call that already gave you what you need.
+run_command waits for the command to finish and returns its output. Pass timeout_seconds for a \
+command that takes longer than 30 seconds. Nothing runs in the background.
+Do not delegate work you can finish yourself in a few steps."""
+# Per-provider additions, keyed by ModelRef.provider. Gemini 3 asks for short, direct
+# prompts, and Gemini 3 Flash has been reported to return one function call per response.
+_PROVIDER_GUIDANCE = {
+    "google": "You can return several function calls in one response, and they run at the "
+    "same time.",
+}
 CHECKS_TOOL = "run_checks"
 _CHECKS_PASSED = "PASS"
 _CHECK_OUTPUT_TAIL = 4000
+# Coder's limits: a read stays under the output cap, and a stale edit or denied path is
+# corrected from its error rather than ending the run on the second mistake.
+_MAX_READ_CHARS = 50_000
+_MAX_OUTPUT_CHARS = 64_000
+_MAX_FILE_TOOL_RETRIES = 5
 
 _CONTEXT_OVERFLOW = re.compile(
     r"context.?length|context window|maximum context|input token count|too many tokens", re.I
@@ -73,6 +117,12 @@ class _UnlimitedRequests(AbstractCapability[WorkerDeps]):
         if ctx.usage_limits is not None:
             ctx.usage_limits.request_limit = None
         return await handler()
+
+
+class _BoundToolOutputs(ToolOutputLimits[WorkerDeps]):
+    def get_toolset(self) -> None:
+        # Truncation only, so the spill-retrieval tool would never have anything to read.
+        return None
 
 
 def build_model(ref: ModelRef) -> Model:
@@ -150,6 +200,7 @@ async def run_worker(
     agent = build_agent(
         model if model is not None else build_model(model_ref),
         role,
+        provider=model_ref.provider,
         thinking=thinking,
         code_mode=code_mode,
     )
@@ -161,12 +212,13 @@ async def run_worker(
 
     async with open_sandbox(task, sandbox_config or SandboxConfig()) as sandbox:
         started = time.monotonic()
-        prompt = _prompt(task, context, note)
+        workspace = DockerWorkspace(sandbox)
+        prompt = _prompt(task, context, note, await _read_listed_files(context, workspace))
         try:
             async with agent.iter(
                 prompt,
                 deps=WorkerDeps(sandbox, task),
-                workspace=DockerWorkspace(sandbox),
+                workspace=workspace,
             ) as run:
                 try:
                     async for _ in run:
@@ -202,18 +254,36 @@ def build_agent(
     model: Model,
     role: WorkerRole,
     *,
+    provider: str,
     thinking: ThinkingEffort | None = None,
     code_mode: bool = False,
 ) -> Agent[WorkerDeps, str]:
-    """The worker agent: Coder's tools and context management, plus run_checks and reminders."""
-    instructions = role.instructions
+    """The worker agent: Coder's capabilities, with its own instructions and run_command.
+
+    It differs from Coder in two ways. Coder's instructions are replaced, not extended. Coder's
+    `shell` starts each command as a detached job that outlives the sandbox's per-command
+    deadline and returns process handles to poll, so commands go through `run_command`, which
+    waits under the deadline and returns the output.
+    """
+    instructions = f"{role.instructions}\n\n{_WORKER_INSTRUCTIONS}"
+    if provider in _PROVIDER_GUIDANCE:
+        instructions += "\n" + _PROVIDER_GUIDANCE[provider]
     if code_mode:
         instructions += (
             "\nWhen you need several files or searches, fetch them together in one run_code call."
         )
     capabilities: list[AbstractCapability[WorkerDeps]] = [
         _UnlimitedRequests(),
-        Coder(instructions=instructions),
+        _file_system(),
+        Shell[WorkerDeps](tools=["run_command"], denied_commands=[]),
+        RepoContext[WorkerDeps](expose_inventory_tool=False),
+        SubAgents[WorkerDeps](include_self=True, agent_folders=None),
+        ClearToolResults[WorkerDeps](max_fraction=0.7),
+        WarnNearLimits[WorkerDeps](max_context_fraction=0.9),
+        _BoundToolOutputs(
+            bands=[Band(over=_MAX_OUTPUT_CHARS, action=Truncate(max_chars=_MAX_OUTPUT_CHARS))]
+        ),
+        RepairToolArguments[WorkerDeps](),
         SystemReminders(dynamic_reminders=[_checks_passed_reminder]),
     ]
     if code_mode:
@@ -222,10 +292,43 @@ def build_agent(
     return Agent(
         model,
         deps_type=WorkerDeps,
+        instructions=[instructions, _project_dir],
         capabilities=capabilities,
         toolsets=[FunctionToolset([run_checks])],
         model_settings=settings,
     )
+
+
+def _file_system() -> FileSystem[WorkerDeps]:
+    # Coder's file tools, without content hashes: one writer per checkout needs no
+    # optimistic locking, and the hashes add tokens to every read and write.
+    return FileSystem[WorkerDeps](
+        content_hashes=False,
+        max_read_chars=_MAX_READ_CHARS,
+        tools=FILE_TOOL_NAMES,
+        max_retries=_MAX_FILE_TOOL_RETRIES,
+    )
+
+
+async def _project_dir(ctx: RunContext[WorkerDeps]) -> str:
+    return (
+        f"Your project is `{await ctx.workspace.working_dir()}`. Commands start there, and the "
+        "file tools only accept paths inside it."
+    )
+
+
+async def _read_listed_files(
+    context: ContextPacket, workspace: WorkspaceBackend
+) -> list[tuple[str, str]]:
+    """Each listed file as read_file returns it, so the first request needs no read round."""
+    tools = _file_system().get_toolset()
+    if not isinstance(tools, FileSystemToolset):
+        raise TypeError("the worker's file tools are read-write, so their toolset is unfiltered")
+    return [
+        (ref.path, await tools.read_file(ref.path, workspace=workspace))
+        for ref in context.refs
+        if ref.kind == "file"
+    ]
 
 
 async def run_checks(ctx: RunContext[WorkerDeps]) -> str:
@@ -278,15 +381,29 @@ def _tokens(usage: RunUsage) -> TokenUsage:
     )
 
 
-def _prompt(task: TaskSpec, context: ContextPacket, note: str | None) -> str:
+def _prompt(
+    task: TaskSpec, context: ContextPacket, note: str | None, files: list[tuple[str, str]]
+) -> str:
     lines = [f"Background: {task.overview}", ""] if task.overview else []
     lines += [task.instruction, ""]
     if context.refs:
         lines.append("Start with these files: " + ", ".join(ref.path for ref in context.refs))
+    if files:
+        lines += ["", "The listed files, as read_file returns them:"]
+        for path, text in files:
+            lines += ["", f'<file path="{path}">', text, "</file>"]
+    # Gemini's prompting guide puts instructions after long context, so the workflow
+    # follows the file contents.
+    step_one = "1. Read the code the task needs."
+    if files:
+        step_one = (
+            "1. The listed files are above, so do not read them again. "
+            "Read any other code the task needs."
+        )
     lines += [
         "",
         "Work in this order:",
-        "1. Read the code the task needs. Make independent reads and searches in the same turn.",
+        step_one,
         "2. Make the smallest change that completes the task.",
     ]
     if task.verifiers:
@@ -294,7 +411,8 @@ def _prompt(task: TaskSpec, context: ContextPacket, note: str | None) -> str:
         lines += [
             f"3. Call {CHECKS_TOOL}(). It runs the task's checks: {commands}. "
             "Fix any failure your change causes, then call it again.",
-            f"4. When {CHECKS_TOOL}() passes, reply with your summary and stop.",
+            f"4. When {CHECKS_TOOL}() passes, reply with your summary and stop. Call it again "
+            "only if you change code after it passes.",
         ]
     else:
         lines += [
