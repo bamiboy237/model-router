@@ -60,7 +60,7 @@ from model_router.workers.sandbox import (
 
 # Bump on any change to the worker's tools, prompt, or reminders, and on any
 # pydantic-ai-harness upgrade, so trials from different harnesses are never pooled.
-HARNESS_VERSION = "5"
+HARNESS_VERSION = "6"
 # Lookups worth batching in one run_code call. Edits, checks, and shell commands stay
 # direct tool calls, so every change to the checkout is its own visible step.
 CODE_MODE_TOOLS = ("read_file", "list_files", "grep")
@@ -397,8 +397,8 @@ def _prompt(
     step_one = "1. Read the code the task needs."
     if files:
         step_one = (
-            "1. The listed files are above, so do not read them again. "
-            "Read any other code the task needs."
+            "1. Start from the file content above. Read omitted sections and any other code "
+            "the task needs."
         )
     lines += [
         "",

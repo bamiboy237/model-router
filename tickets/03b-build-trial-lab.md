@@ -208,14 +208,25 @@ A throwaway Docker run completed two trials with estimates above the old plan li
 
 Live uncapped Gemini smoke (`review-pr1-uncapped-v4-20261014`) passed hidden tests with 16 requests, 140.7 seconds, and $0.1488. Its usage matched the transcript.
 
-## Harness version 5
+## Harness versions 5 and 6
 
 Version 5 changes the harness and the prompt (ticket `01`). The worker is now built from `Coder`'s capabilities rather than `Coder` itself. That drops `Coder`'s built-in instructions, which ask the model to seek approval, run extra lint and type checks, and poll long-running work. It also replaces the detached `shell` tool with `run_command`, which waits under the sandbox's per-command deadline. The worker reads the listed files before the first request and puts them in the task message. New instructions tell every model that no one will answer questions, to make independent calls in the same response, to read code with the file tools, and not to repeat calls or delegate small work. Gemini gets one extra line saying parallel function calls run at the same time. Limits are unchanged from version 4.
 
-Still to run, on a machine with Docker and a Gemini key:
+Version 6 fixes the preloaded-file workflow: a listed file can exceed the default 2,000-line or 50,000-character read window, so the worker may read omitted sections. Version 5's blanket instruction not to reread listed files conflicted with those continuation hints. Keep version 5 evidence unchanged and use new run IDs for version 6.
 
-1. `lab run plans/smoke.toml`. Compare requests, time, and cost with version 4 (16 requests, 140.7 s, $0.1488). From the transcript, count tool calls per response, rereads of the listed files, and requests after the first passing `run_checks()`.
-2. If no Gemini response holds more than one tool call, run `lab run plans/codemode-ab.toml` on version 5 and apply the Code Mode rule from version 2. Otherwise Code Mode stays off and the A/B run stays on hold.
+Live Docker smoke results on `typedkey-kwargs`, medium thinking, Code Mode off:
+
+| Harness | Model | Requests | Total seconds | Cost USD | Run |
+| --- | --- | ---: | ---: | ---: | --- |
+| 4 | Gemini 3.8 Flash | 16 | 140.7 | 0.148800 | `review-pr1-uncapped-v4-20261014` |
+| 5 | Gemini 3.8 Flash | 14 | 148.7 | 0.143111 | `review-pr2-v5-gemini-20261014` |
+| 5 | Muse Spark 1.3 | 3 | 31.5 | 0.025440 | `review-pr2-v5-meta-20261014` |
+| 6 | Gemini 3.8 Flash | 20 | 192.2 | 0.200226 | `review-pr2-v6-gemini-20261014` |
+| 6 | Muse Spark 1.3 | 4 | 41.1 | 0.042359 | `review-pr2-v6-meta-20261014` |
+
+Every smoke passed hidden tests, and recorded token usage matched its transcript. These are single trials per configuration, not evidence of a general speed or cost improvement. Gemini still made one tool call per response. Version 5 made no `read_file` calls on the listed files; version 6 reread 40 lines of `tests/test_keys.py`. Both Gemini runs first called `run_checks()` before editing, when visible tests already passed. The 13 and 19 responses after that first pass include the actual fix, so that count does not measure work after task completion. Meta version 6 issued two independent reads in one response.
+
+The version 6 Code Mode comparison is running as `review-pr2-v6-codemode-ab-20261014`: three tasks, two arms, three repetitions, concurrency two. Apply the version 2 decision rule when all trials finish. Code Mode remains off by default.
 
 Known limits:
 
