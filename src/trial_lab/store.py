@@ -18,8 +18,9 @@ from model_router.trial_record import TrialRecord
 
 
 class RunStore:
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, *, repair_partial: bool = True) -> None:
         self.root = root
+        self.repair_partial = repair_partial
         self.trials = root / "trials.jsonl"
         self.errors = root / "errors.jsonl"
 
@@ -56,9 +57,11 @@ class RunStore:
         if data and not data.endswith(b"\n"):
             # A run killed mid-write leaves a partial last row. Drop it, so the trial runs
             # again and the next row does not join onto the fragment.
-            with path.open("r+b") as file:
-                file.truncate(data.rfind(b"\n") + 1)
-            data = path.read_bytes()
+            end = data.rfind(b"\n") + 1
+            if self.repair_partial:
+                with path.open("r+b") as file:
+                    file.truncate(end)
+            data = data[:end]
         return [line for line in data.decode().splitlines() if line]
 
 

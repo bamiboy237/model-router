@@ -68,7 +68,7 @@ def _report(root: Path, min_samples: int) -> int:
     if not root.is_dir():
         print(f"no run at {root}", file=sys.stderr)
         return 2
-    store = RunStore(root)
+    store = RunStore(root, repair_partial=False)
     try:
         lines = report(
             lab_records(store.records()),
@@ -92,7 +92,11 @@ def _export(runs: Path, run_ids: list[str], out: Path, seed: str, fraction: floa
         print(f"no run at {', '.join(str(runs / m) for m in missing)}", file=sys.stderr)
         return 2
     try:
-        rows = [row for run_id in run_ids for row in lab_records(RunStore(runs / run_id).records())]
+        rows = [
+            row
+            for run_id in run_ids
+            for row in lab_records(RunStore(runs / run_id, repair_partial=False).records())
+        ]
         manifest = export(rows, out, seed=seed, holdout_fraction=fraction)
     except ValueError as error:
         print(f"cannot export: {error}", file=sys.stderr)

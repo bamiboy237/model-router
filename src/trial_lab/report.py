@@ -53,8 +53,13 @@ def report(
     error_cost_micro_usd: int,
     min_samples: int = MIN_SAMPLES,
 ) -> list[str]:
+    if min_samples < 1:
+        raise ValueError("min_samples must be at least one")
+    errors = (
+        f"provider errors: {error_count}, ${error_cost_micro_usd / 1e6:.4f} (not model evidence)"
+    )
     if not rows:
-        return ["no trials recorded"]
+        return ["no trials recorded", errors]
     labs = {(r.lab.run_id, r.lab.plan_hash, r.lab.harness_version) for r in rows}
     if len(labs) != 1:
         raise ValueError("a report covers one run of one plan and harness")
@@ -65,7 +70,7 @@ def report(
     lines = [
         f"run {run_id}: plan {plan_hash[:12]}, harness {harness}, {len(rows)} trials, "
         f"${spent / 1e6:.4f}",
-        f"provider errors: {error_count}, ${error_cost_micro_usd / 1e6:.4f} (not model evidence)",
+        errors,
         f"cells with fewer than {min_samples} trials show insufficient_evidence",
         "",
         "by arm",
@@ -92,7 +97,11 @@ def report(
             f"  {task_id} ({first.lab.task_family}, {first.record.kind}): "
             f"{_rate(Stats.of(group), min_samples)}; {per_arm}"
         )
-    lines += ["", "baselines (success averages tasks; cost is one try at every task)"]
+    lines += [
+        "",
+        "baselines (arms selected from this run; not a held-out policy evaluation)",
+        "success averages covered tasks; cost is one try per covered task",
+    ]
     lines += [f"  {line}" for line in _baselines(rows, arms, models, by_task, min_samples)]
     return lines
 
