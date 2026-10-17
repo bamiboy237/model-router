@@ -2,7 +2,7 @@
 
 ## Stage
 
-Beginning. Milestones 1 and 2 are done. Milestone 3's commands are built; scoring the baselines waits for a live run with more than one model. This ticket blocks ticket `05`. It absorbs the old ticket `04` (benchmark and baselines).
+Beginning. Milestones 1 and 2 are done. Milestone 3's commands passed a live multi-model smoke run; the full stage 1 benchmark remains. This ticket blocks ticket `05`. It absorbs the old ticket `04` (benchmark and baselines).
 
 ## Purpose
 
@@ -199,7 +199,16 @@ A throwaway script wrote a synthetic run of 10 tasks × 3 arms × 3 repetitions 
 - `lab export` wrote 54 training trials (`flaskr`, `shopfront`) and 36 holdout trials (`cachetools`). The manifest hashes matched the files.
 - The export refused an existing directory, a run listed twice, and a seed that put every family on one side. `lab report` refused a missing run.
 
-Still to do: run a stage 1 plan with two or three models, score the baselines on it, and record the result here.
+### Live PR 3 check
+
+Run `review-pr3-live-20261017` used plan hash `a763e824b54d`, harness 4, price table `2026-10-14-r1`, medium thinking, and CodeMode off. Gemini 3.8 Flash and DeepSeek V4.1 Flash each attempted `typedkey-kwargs` and `user-queries-refactor` once. All four trials passed hidden tests, with no provider errors. Total recorded cost was $0.275567.
+
+- Default reports marked the two-trial arm cells `insufficient_evidence`. With `--min-samples 1` for the command check, all four baselines covered both tasks. DeepSeek won the three measured arm choices. Its combined task cost was $0.005640 and median latency was 20.053 seconds. The restricted rule-based baseline selected Gemini, with combined task cost $0.269927 and median latency 117.167 seconds. DeepSeek has no configured routing prior, so the rule-based comparison cannot select it.
+- Export wrote two `flaskr` training rows and two `cachetools` holdout rows. Both files matched their manifest hashes, read back as `TrialRecord`, and reproduced all four original rows without family overlap. These previously used tasks do not establish unseen-task performance.
+- Transcript token totals, recorded costs, patch hashes, and trial IDs matched their source records and plan. Resume skipped all four completed trials without new model calls. Docker removed the trial containers after completion.
+- A throwaway 90-trial dataset checked baseline calculations with different success rates, costs, and latencies. It also checked repeatable exports, invalid inputs, mixed harnesses, source preservation with incomplete logs, and resume repair. Reports ran against 14 saved schema-2 run directories without changing their source logs.
+
+Still to do: run the full stage 1 benchmark with two or three models and evaluate frozen choices on unused task families. The four-trial smoke run validates the command flow, not general model reliability or routing gains.
 
 ## Harness version 2
 
