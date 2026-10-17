@@ -6,7 +6,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from trial_lab.admission import admit_all
+from trial_lab.export import HOLDOUT_FRACTION, SPLIT_SEED, export
 from trial_lab.plan import load_plan
+from trial_lab.report import MIN_SAMPLES, lab_records, report
 from trial_lab.run import PreparedPlan, load_settings, prepare, run_plan
 from trial_lab.store import RunStore
 from trial_lab.tasks import LabTask, load_tasks
@@ -27,7 +29,23 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("plan", type=Path)
     run.add_argument("--run-id", help="resume this run, or start it under this id")
     run.add_argument("--runs", type=Path, default=Path("runs"), help="runs directory")
+    report = commands.add_parser("report", help="print a run's results and fixed baselines")
+    report.add_argument("run_id")
+    report.add_argument("--runs", type=Path, default=Path("runs"), help="runs directory")
+    report.add_argument(
+        "--min-samples", type=int, default=MIN_SAMPLES, help="trials a cell needs for rates"
+    )
+    export = commands.add_parser("export", help="write training and holdout datasets")
+    export.add_argument("run_ids", nargs="+")
+    export.add_argument("--out", type=Path, required=True, help="new dataset directory")
+    export.add_argument("--runs", type=Path, default=Path("runs"), help="runs directory")
+    export.add_argument("--seed", default=SPLIT_SEED, help="family split seed")
+    export.add_argument("--holdout-fraction", type=float, default=HOLDOUT_FRACTION)
     args = parser.parse_args(argv)
+    if args.command == "report":
+        return _report(args.runs / args.run_id, args.min_samples)
+    if args.command == "export":
+        return _export(args.runs, args.run_ids, args.out, args.seed, args.holdout_fraction)
     try:
         corpus = load_tasks(args.tasks)
     except ValueError as error:  # includes TOML and validation errors
@@ -44,6 +62,49 @@ def main(argv: list[str] | None = None) -> int:
         _print_plan(prepared)
         return 0
     return _run(prepared, args.plan, corpus, args.runs, args.run_id)
+
+
+def _report(root: Path, min_samples: int) -> int:
+    if not root.is_dir():
+        print(f"no run at {root}", file=sys.stderr)
+        return 2
+    store = RunStore(root, repair_partial=False)
+    try:
+        lines = report(
+            lab_records(store.records()),
+            error_count=store.error_count(),
+            error_cost_micro_usd=store.error_cost_micro_usd(),
+            min_samples=min_samples,
+        )
+    except ValueError as error:
+        print(f"cannot report {root.name}: {error}", file=sys.stderr)
+        return 2
+    print("\n".join(lines))
+    return 0
+
+
+def _export(runs: Path, run_ids: list[str], out: Path, seed: str, fraction: float) -> int:
+    if len(set(run_ids)) != len(run_ids):
+        print("a run is listed twice", file=sys.stderr)
+        return 2
+    missing = [run_id for run_id in run_ids if not (runs / run_id).is_dir()]
+    if missing:
+        print(f"no run at {', '.join(str(runs / m) for m in missing)}", file=sys.stderr)
+        return 2
+    try:
+        rows = [
+            row
+            for run_id in run_ids
+            for row in lab_records(RunStore(runs / run_id, repair_partial=False).records())
+        ]
+        manifest = export(rows, out, seed=seed, holdout_fraction=fraction)
+    except ValueError as error:
+        print(f"cannot export: {error}", file=sys.stderr)
+        return 2
+    for name, side in (("train", manifest["train"]), ("holdout", manifest["holdout"])):
+        print(f"{name}: {side['trials']} trials, families {', '.join(side['families'])}")
+    print(f"wrote {out}")
+    return 0
 
 
 def _tasks_check(corpus: list[LabTask], ids: list[str], jobs: int) -> int:

@@ -179,7 +179,16 @@ set -a && . ./.env && set +a
 uv run lab run plans/smoke.toml
 ```
 
-A run writes `runs/<run_id>/`. If a run stops, the last lines of its output show the command that resumes it. If the worker's harness version changes, start a new run. The lab rejects resumes that would mix harness versions.
+A run writes `runs/<run_id>/`. Print its results and the fixed baselines, or export training and holdout datasets split by task family:
+
+```sh
+uv run lab report <run_id>
+uv run lab export <run_id> --out datasets/<name>
+```
+
+Report and export leave source runs unchanged. Reports require `--min-samples` to be at least 1.
+
+If a run stops, the last lines of its output show the command that resumes it. If the worker's harness version changes, start a new run. The lab rejects resumes that would mix harness versions.
 
 Workers can use sub-agents and have no request, token, cost, or wall-time caps. Lab plans have no spending limit. Cost estimates and recorded usage remain available. Docker resource limits and verifier timeouts still apply.
 

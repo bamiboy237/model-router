@@ -12,7 +12,7 @@ from model_router.routing.config import (
 )
 from model_router.routing.facts import TaskFacts, measure
 from model_router.routing.request import DelegationRequest
-from model_router.routing.router import NoEligibleModelError, escalate, route
+from model_router.routing.router import NoEligibleModelError, escalate, repick, route
 
 __all__ = [
     "DelegationRequest",
@@ -29,6 +29,7 @@ __all__ = [
     "measure",
     "model_key",
     "model_ref",
+    "repick",
     "route",
     "tag_keys",
 ]
