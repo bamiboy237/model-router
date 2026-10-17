@@ -26,6 +26,9 @@ class RunStore:
     def records(self) -> list[TrialRecord]:
         return [TrialRecord.model_validate_json(line) for line in self._lines(self.trials)]
 
+    def error_count(self) -> int:
+        return len(self._lines(self.errors))
+
     def error_cost_micro_usd(self) -> int:
         return sum(int(json.loads(line)["cost_micro_usd"]) for line in self._lines(self.errors))
 

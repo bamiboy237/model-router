@@ -2,7 +2,7 @@
 
 ## Stage
 
-Beginning. Milestones 1 and 2 are done. This ticket blocks ticket `05`. It absorbs the old ticket `04` (benchmark and baselines).
+Beginning. Milestones 1 and 2 are done. Milestone 3's commands are built; scoring the baselines waits for a live run with more than one model. This ticket blocks ticket `05`. It absorbs the old ticket `04` (benchmark and baselines).
 
 ## Purpose
 
@@ -126,8 +126,18 @@ runs/<run_id>/
 - `lab tasks check`: validates task files and runs admission.
 - `lab plan <plan.toml>`: prints the trial count and the estimated cost.
 - `lab run <plan.toml> [--run-id <id>]`: starts a run, or resumes the run with that id.
-- `lab report <run_id>`: prints success, cost, and latency per arm, task kind, and family, with `insufficient_evidence` for cells below the minimum sample size. It also scores the fixed baselines on the run's data.
-- `lab export <run_id>... --split`: writes the training and holdout datasets for ticket `06`.
+- `lab report <run_id> [--min-samples 5]`: prints success, cost, and median latency per arm, per arm and task kind, and per arm and family. Cells with fewer trials than the minimum show `insufficient_evidence`. It also prints each task's pass rate over every arm, hardest first, and scores the fixed baselines on the run's data.
+- `lab export <run_id>... --out <dir> [--seed split-v1] [--holdout-fraction 0.33]`: writes the training and holdout datasets for ticket `06`. Every export is split by family.
+
+## Reports, baselines, and export
+
+- **Success** means a trial's status is `success`: every required check passed, including hidden tests. Uncertain trials count as not passing. Provider errors are listed with their cost but are not model evidence.
+- **Baselines** pick arms. For each task, a baseline's outcome is the mean over its picked arms' trials on that task. Success is the mean over tasks, cost is the sum over tasks (one try at every task), and latency is the median over the picked trials. A task with no picked trials counts as uncovered.
+- **Always strongest, always cheapest, and lowest latency** are single arms chosen from the run's own results. They are the arm with the highest success rate (cost breaks ties), the lowest mean cost, and the lowest median latency. So "strongest" is the arm that did best in this run, not the model the priors rank highest.
+- **Rule-based router:** the router weighs every configured model, so its recorded pick may be a model the run never tried. `model_router.routing.repick` applies the receipt's recorded pick rule and bar to the receipt's eligible candidates among the run's models. If several arms share the chosen model, for example two thinking levels, the baseline pools them, because the router does not pick a thinking level.
+- **Minimum sample size** is 5 trials. Three repetitions of one task are not enough to state a pass rate, so per-task difficulty with one arm shows `insufficient_evidence`.
+- **Split:** `split_by_family` places a family by hashing the seed with the family name, so adding families never moves an existing one across the split. Seed `split-v1` with fraction 0.33 holds out `cachetools`. Training keeps `flaskr` and `shopfront`, which together cover all four task kinds. Holding out `flaskr` would remove the only refactor task from training, and holding out `shopfront` would remove the only frontend project. An export fails if every family lands on one side.
+- **Export output:** `train.jsonl` and `holdout.jsonl` hold the trial records as stored. `manifest.json` names the schema version, harness version, runs and plan hashes, split seed and fraction, and each side's families, task IDs, trial count, and SHA-256. An export refuses an existing directory, a run listed twice, runs from different harness versions, and a task that appears in two families. Ticket `06` should parse the manifest into a `Contract` when it reads it.
 
 ## Milestones
 
@@ -177,6 +187,17 @@ Live smoke (`plans/smoke.toml`, run `smoke-1`): `typedkey-kwargs` with Gemini 3.
 At the time of `smoke-2`, the coding role capped cost, not tokens: `max_cost_usd = 5`, priced with the price table after each response. That run passed every check: 38 requests, 1,578,185 input tokens (1,354,129 cached), 45,249 output tokens, $0.44, and 417 s. Its recorded tokens equal the transcript's sum.
 
 Smoke runs 1 and 2 used harness version 1 with thinking high. Their rows use schema version 1, which the code no longer reads.
+
+## Milestone 3 check
+
+A throwaway script wrote a synthetic run of 10 tasks × 3 arms × 3 repetitions (Gemini 3.8 Flash, GPT-5.6 Sol, GPT-6 Astra) with the corpus's real router receipts, then ran the commands:
+
+- `lab report` printed every cell. Refactor cells (3 trials per arm) showed `insufficient_evidence`. All four baselines covered 10 of 10 tasks.
+- The recorded router pick was GPT-6.1 Sol, which the run did not include. Restricted to the run's models, the rule-based baseline picked GPT-5.6 Sol, the cheapest model with an expected success of at least 0.8.
+- `lab export` wrote 54 training trials (`flaskr`, `shopfront`) and 36 holdout trials (`cachetools`). The manifest hashes matched the files.
+- The export refused an existing directory, a run listed twice, and a seed that put every family on one side. `lab report` refused a missing run.
+
+Still to do: run a stage 1 plan with two or three models, score the baselines on it, and record the result here.
 
 ## Harness version 2
 

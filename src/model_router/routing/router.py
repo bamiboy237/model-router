@@ -1,8 +1,9 @@
 from collections.abc import Callable, Collection
 from dataclasses import dataclass
+from typing import cast, get_args
 
 from model_router.contracts import Candidate, DecisionReceipt, Feature, ModelRef, TokenUsage
-from model_router.routing.config import RouterConfig, model_key, model_ref
+from model_router.routing.config import PickRule, RouterConfig, model_key, model_ref
 from model_router.routing.facts import TaskFacts
 from model_router.routing.request import DelegationRequest
 from model_router.workers.config import PriceTable, UnpricedModelError
@@ -28,7 +29,7 @@ def route(
     request: DelegationRequest, facts: TaskFacts, config: RouterConfig, prices: PriceTable
 ) -> DecisionReceipt:
     candidates, options = _evaluate(request, facts, config, prices, lambda ref, est: [])
-    chosen, rationale = _pick(options, config)
+    chosen, rationale = _pick(options, config.pick_rule, config.min_success)
     verdicts = {o.ref: _verdict(o, chosen, options, config) for o in options}
     return _receipt(request, facts, config, candidates, verdicts, chosen, rationale)
 
@@ -150,21 +151,40 @@ def _expected_cost(
         return None
 
 
-def _pick(options: list[_Option], config: RouterConfig) -> tuple[_Option, str]:
+def repick(receipt: DecisionReceipt, models: Collection[ModelRef]) -> ModelRef | None:
+    """Apply the receipt's recorded pick rule to its eligible candidates among models."""
+    rule = receipt.task_features.get("pick_rule")
+    bar = receipt.task_features.get("min_success")
+    if rule not in get_args(PickRule) or isinstance(bar, bool) or not isinstance(bar, int | float):
+        raise ValueError(f"receipt {receipt.decision_id} does not record its pick rule")
+    options = [
+        _Option(model_key(c.model), c.model, c.score, c.expected_cost_micro_usd)
+        for c in receipt.candidates
+        if c.model in models
+        and not c.constraint_violations
+        and c.score is not None
+        and c.expected_cost_micro_usd is not None
+    ]
+    if not options:
+        return None
+    return _pick(options, cast(PickRule, rule), bar)[0].ref
+
+
+def _pick(options: list[_Option], rule: PickRule, min_success: float) -> tuple[_Option, str]:
     def best_success(pool: list[_Option]) -> _Option:
         return min(pool, key=lambda o: (-o.success, o.cost, o.key))
 
-    if config.pick_rule == "best_success":
+    if rule == "best_success":
         return best_success(options), "highest expected success; cost breaks ties"
-    if config.pick_rule == "best_value":
+    if rule == "best_value":
         chosen = min(options, key=lambda o: (-o.success / max(o.cost, 1), -o.success, o.key))
         return chosen, "highest expected success per dollar"
-    above = [o for o in options if o.success >= config.min_success]
+    above = [o for o in options if o.success >= min_success]
     if above:
         chosen = min(above, key=lambda o: (o.cost, -o.success, o.key))
-        return chosen, f"cheapest model with expected success >= {config.min_success:.2f}"
+        return chosen, f"cheapest model with expected success >= {min_success:.2f}"
     return best_success(options), (
-        f"no model reaches expected success {config.min_success:.2f}; "
+        f"no model reaches expected success {min_success:.2f}; "
         "fell back to the highest expected success"
     )
 
