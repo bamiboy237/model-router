@@ -4,6 +4,7 @@
 # https://ai.google.dev/gemini-api/docs/pricing
 # https://api-docs.deepseek.com/quick_start/pricing
 # Meta rates checked on 2026-10-14: https://dev.meta.ai/docs/pricing-rate-limits
+# DeepSeek Flash rates rechecked on 2026-10-14; existing values are unchanged.
 # Token costs only: excludes tools, cache storage, and regional surcharges.
 # This schema cannot select long-context or time-dependent rates automatically.
 # Gemini 3.8 Flash prices double on 2027-01-01; publish a new version then.

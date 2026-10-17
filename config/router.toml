@@ -59,7 +59,8 @@ docs = { input_tokens = 80_000, output_tokens = 8_000 }
 # context_limit comes from each provider's model page (read 2026-10-01).
 # success values are GUESSES of the chance a job passes its checks, keyed by
 # "<kind>/<domain>", "<kind>", or "*", most specific first. Ticket 06 replaces them
-# with measured success rates. DeepSeek is omitted until build_model supports it.
+# with measured success rates. Meta and DeepSeek stay outside automatic routing
+# until measured evidence supports their priors. The lab can assign them directly.
 
 [models."openai:gpt-6-astra"]
 context_limit = 1_050_000
