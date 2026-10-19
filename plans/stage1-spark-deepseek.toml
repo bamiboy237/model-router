@@ -1,0 +1,16 @@
+# Stage 1 on harness 7: every seed task, Muse Spark 1.3 and DeepSeek V4.1 Flash, medium thinking.
+plan_id = "stage1-spark-deepseek"
+seed = 20261019
+repetitions = 3
+concurrency = 4
+prices = "2026-10-14-r1"
+
+[[arms]]
+arm_id = "spark-medium"
+model = { provider = "meta", model_id = "muse-spark-1.3" }
+thinking = "medium"
+
+[[arms]]
+arm_id = "deepseek-medium"
+model = { provider = "deepseek", model_id = "deepseek-flash" }
+thinking = "medium"

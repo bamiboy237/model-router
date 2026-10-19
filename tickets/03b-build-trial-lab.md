@@ -210,6 +210,8 @@ Run `review-pr3-live-20261017` used plan hash `a763e824b54d`, harness 4, price t
 
 Still to do: run the full stage 1 benchmark with two or three models and evaluate frozen choices on unused task families. The four-trial smoke run validates the command flow, not general model reliability or routing gains.
 
+`plans/stage1-spark-deepseek.toml` is the harness 7 benchmark: 10 tasks × Muse Spark 1.3 and DeepSeek V4.1 Flash × 3 repetitions, medium thinking, 60 trials, estimated at $8.95. Neither model has a routing prior in `config/router.toml`, so the rule-based baseline covers no tasks in this run. Equal placeholder priors would make it pick the cheaper model on every task, which adds nothing over the cheapest baseline. The priors stay unchanged until measured evidence replaces them.
+
 ## Harness version 2
 
 The `smoke-2` transcript showed where the 417 seconds went: one tool call per turn across 38 turns, about 15 turns on git history, tool versions, and benchmarks, and more work after the tests had passed. Harness version 2 (ticket `01`) rebuilds the worker on Pydantic AI Harness `Coder` with a `run_checks()` stop signal and turn-budget reminders. The plans now use thinking medium.
