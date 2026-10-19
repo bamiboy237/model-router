@@ -140,6 +140,10 @@ class VerifierSpec(Contract):
     command: tuple[Id, ...] = Field(min_length=1)
     timeout_s: float = Field(gt=0)
     required: bool = True
+    worker_visible: bool = Field(
+        default=True,
+        description="Whether the worker can run this command without grader-only files.",
+    )
     junit_path: Id | None = Field(
         default=None,
         description="Absolute path of a JUnit XML report the command writes, outside the "
@@ -193,6 +197,10 @@ class TaskSpec(Contract):
         require_domain_matches_kind(self.kind, self.domain)
         _require_unique((v.name for v in self.verifiers), "verifier name")
         return self
+
+    @property
+    def worker_verifiers(self) -> tuple[VerifierSpec, ...]:
+        return tuple(verifier for verifier in self.verifiers if verifier.worker_visible)
 
     def summary(self) -> "TaskSummary":
         return TaskSummary(

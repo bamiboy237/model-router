@@ -46,7 +46,7 @@ from model_router.workers.sandbox import (
 
 # Bump on any change to the worker's tools, prompt, or reminders, and on any
 # pydantic-ai-harness upgrade, so trials from different harnesses are never pooled.
-HARNESS_VERSION = "4"
+HARNESS_VERSION = "7"
 # Lookups worth batching in one run_code call. Edits, checks, and shell commands stay
 # direct tool calls, so every change to the checkout is its own visible step.
 CODE_MODE_TOOLS = ("read_file", "list_files", "grep")
@@ -242,21 +242,22 @@ def build_agent(
 
 
 async def run_checks(ctx: RunContext[WorkerDeps]) -> str:
-    """Run the task's checks exactly as the grader runs them. Takes no arguments.
+    """Run the task's worker-visible checks. Takes no arguments.
 
-    Returns PASS when every check passes, or FAIL with the end of each failing check's output.
+    Returns PASS when every visible check passes, or FAIL with failing output.
     """
     task, sandbox = ctx.deps.task, ctx.deps.sandbox
-    if not task.verifiers:
-        return "This task has no automated checks. Check your change with an inline script."
+    verifiers = task.worker_verifiers
+    if not verifiers:
+        return "No checks are available in this workspace. Check your change with an inline script."
     failed: list[str] = []
-    for verifier in task.verifiers:
+    for verifier in verifiers:
         result = await sandbox.run(shlex.join(verifier.command), verifier.timeout_s)
         if result.exit_code == 0:
             continue
         status = "timed out" if result.timed_out else f"exit code {result.exit_code}"
         failed.append(f"{verifier.name}: {status}\n{result.output[-_CHECK_OUTPUT_TAIL:]}")
-    names = ", ".join(v.name for v in task.verifiers)
+    names = ", ".join(v.name for v in verifiers)
     if failed:
         return "FAIL\n" + "\n\n".join(failed)
     # The grader adds hidden tests, so a pass here is the visible bar, not the final result.
@@ -302,10 +303,10 @@ def _prompt(task: TaskSpec, context: ContextPacket, note: str | None) -> str:
         "1. Read the code the task needs. Make independent reads and searches in the same turn.",
         "2. Make the smallest change that completes the task.",
     ]
-    if task.verifiers:
-        commands = "; ".join(shlex.join(v.command) for v in task.verifiers)
+    if task.worker_verifiers:
+        commands = "; ".join(shlex.join(v.command) for v in task.worker_verifiers)
         lines += [
-            f"3. Call {CHECKS_TOOL}(). It runs the task's checks: {commands}. "
+            f"3. Call {CHECKS_TOOL}(). It runs the task's visible checks: {commands}. "
             "Fix any failure your change causes, then call it again.",
             f"4. When {CHECKS_TOOL}() passes, reply with your summary and stop.",
         ]

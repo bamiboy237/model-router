@@ -30,5 +30,6 @@ timeout_s = 300
 name = "mutants"
 version = "1"
 kind = "tests"
+worker_visible = false
 command = ["sh", ".lab/kill_mutants.sh", "PYTHONPATH=src python -m pytest -q -x tests/test_keys.py"]
 timeout_s = 600

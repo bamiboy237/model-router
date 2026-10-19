@@ -192,6 +192,10 @@ If a run stops, the last lines of its output show the command that resumes it. I
 
 Workers can use sub-agents and have no request, token, cost, or wall-time caps. Lab plans have no spending limit. Cost estimates and recorded usage remain available. Docker resource limits and verifier timeouts still apply.
 
+Workers run the checks available in their workspace. A verifier with `worker_visible = false`
+runs only during final grading, after the grader adds its hidden files. These checks still
+decide whether a trial passes.
+
 To try Muse Spark 1.3, set `MODEL_API_KEY` and run `uv run lab run plans/smoke-meta.toml`. [Meta integration notes](docs/meta-model-api.md) include the official API and pricing sources.
 
 To try DeepSeek V4.1 Flash, set `DEEPSEEK_API_KEY` and run `uv run lab run plans/smoke-deepseek.toml`. [DeepSeek integration notes](docs/deepseek-model-api.md) describe the model ID, reasoning replay, and pricing limits.

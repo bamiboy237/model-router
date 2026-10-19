@@ -246,6 +246,13 @@ Known limits:
 - `SIGKILL` on the runner leaves its sandbox containers running. They carry the label `model-router.sandbox=1` and exit after `SandboxConfig.lifetime_s` (2 hours).
 - `lab run` does not read `.env`. Load keys into the environment first.
 
+## Harness version 7 decisions and limitations
+
+- `VerifierSpec.worker_visible` defaults to true. The worker's prompt and `run_checks` use `TaskSpec.worker_verifiers`. Final grading still runs every required verifier, including those with `worker_visible = false`.
+- The `mutants` verifiers for `keys-tests` and `cart-tests` are grader-only. Their script and mutation patches enter through the hidden-test overlay. Before this fix, a known-good solution passed grading but failed worker checks with a missing `.lab/kill_mutants.sh` error. The same Docker reproduction now passes both worker checks and full grading on both tasks.
+- Stopped run `stage1-three-models-20261017` has 33 completed rows and $3.825894 in recorded trial cost. Its test-writing results are affected by this defect and cannot establish model quality. Existing rows stay unchanged. Four active attempts were cancelled; the current runner did not capture their complete usage or charges.
+- Start a new run for harness 7. Versions 5 and 6 belong to earlier rejected experiments. The new verifier field has a backward-compatible default, so schema version 2 remains readable.
+
 ## Notes
 
 - `plans/smoke-meta.toml` assigns `meta:muse-spark-1.3` directly to one coding task. Standard-mode pricing is in table `2026-10-14-r1`. Automatic routing priors stay unchanged until measured evidence is available.
